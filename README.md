@@ -3,8 +3,8 @@ Project to provide classification, family identification, and other insights int
 <br>
 ### Basic Example Usage:
 import mmbot as mmb<br>
-mymacrobot = mmb.MaliciousMacroBot(benign_path='./model/benign_samples/',<br>
-                                   malicious_path='./model/malicious_samples/',<br>
+mymacrobot = mmb.MaliciousMacroBot(benign_path='./model/benign_samples/',
+                                   malicious_path='./model/malicious_samples/',
                                    model_path='./model/')<br>
 mymacrobot.mmb_init_model()<br>
 pathtofile = '/home/jschmo/malware_research/rsa/samples/unknown/mydoc.docm'<br>
