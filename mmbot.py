@@ -15,7 +15,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import preprocessing, neighbors
-
+from sklearn.model_selection import cross_val_score
 
 class MaliciousMacroBot:
     def __init__(self, benign_path="./model/benign_samples", malicious_path="./model/malicious_samples", model_path="./model"):
@@ -78,6 +78,9 @@ class MaliciousMacroBot:
         Given a path to a file or folder of files, returns a dataframe with the 
         recursive listing of filename, filepath, filesize, modified date, and md5 hash.
         '''
+        if not os.path.exists(path):
+            raise IOError("ERROR: File or path does not exist: {}".format(path,))
+
         if os.path.isfile(path):
             meta = self.getFileMetaData(path, getHash=getHash)
             return pd.DataFrame({'filename':(meta[0],),
@@ -93,12 +96,13 @@ class MaliciousMacroBot:
                     filepath = os.path.join(root, filename)
                     meta = self.getFileMetaData(filepath, filename, getHash=getHash)
                     matches.append(meta)
-            filenames,paths,sizes,dates,md5s = zip(*matches)
-            return pd.DataFrame({'filename':filenames, 'filepath':paths, 'filesize':sizes, \
+            if len(matches) > 0:
+                filenames,paths,sizes,dates,md5s = zip(*matches)
+                return pd.DataFrame({'filename':filenames, 'filepath':paths, 'filesize':sizes, \
                                  'filemodified':dates, 'md5':md5s})
+            return pd.DataFrame()
         except Exception, e:
-            print "Error loading samples from path %s: %s" % (path, str(e))
-            return None
+            raise IOError("ERROR with file or path {}: {}".format(path,str(e)))
 
     def getFamilyName(self, filepath):
         '''
@@ -139,6 +143,7 @@ class MaliciousMacroBot:
 
         # Get custom VBA features
         self.modeldata[['function_names',
+                          'vba_avg_param_per_func', 
                           'vba_cnt_comments',
                           'vba_cnt_functions',
                           'vba_cnt_loc',
@@ -240,15 +245,19 @@ class MaliciousMacroBot:
             knowndocs = pd.read_pickle(self.modeldata_pickle)
         except Exception, e:
             print "No usable pre-existing saved model data found: {}".format(str(e))
+            knowndocs = None
 
         maldocs = self.getSamplesFromDisk(self.malicious_path)
-        if maldocs is not None:
+        if len(maldocs) > 0:
             maldocs['label'] = 'malicious'
     
         benigndocs = self.getSamplesFromDisk(self.benign_path)
-        if benigndocs is not None:
+        if len(benigndocs) > 0:
             benigndocs['label'] = 'benign'
-    
+  
+        if len(benigndocs) == 0 and len(maldocs) == 0 and knowndocs is None:
+            raise IOError("ERROR: Unable to load saved model data {} or process samples rooted in model path {}.  Unable to make predictions.".format(self.modeldata_pickle, self.model_path))
+
         possiblenew = pd.concat([maldocs, benigndocs], axis=0)
 
         if knowndocs is None:
@@ -447,6 +456,10 @@ class MaliciousMacroBot:
         all_num_functions = []
         all_locs = []
         entropy_func_names = 0
+        avg_param_per_func = 0.0
+        functions_str = ''
+        vba_cnt_func_loc_ratio = 0.0
+        vba_cnt_comment_loc_ratio = 0.0
 
         if vb == 'No VBA Macros found' or vb[0:6] == 'Error:':
             functions = 'None'
@@ -482,6 +495,9 @@ class MaliciousMacroBot:
             if len(functions) > 0:
                 function_name_str = ''.join(functions.keys())
                 entropy_func_names = self.getEntropy(pd.Series(list(function_name_str)))
+                functions_str = ', '.join(functions.keys())
+                param_list = functions.values()
+                avg_param_per_func = (1.0 * sum(param_list)) / len(param_list) 
             if loc > 0:
                 vba_cnt_func_loc_ratio = (1.0*len(functions))/loc
                 vba_cnt_comment_loc_ratio = (1.0*num_comments)/loc
@@ -489,7 +505,9 @@ class MaliciousMacroBot:
                 avg_loc_func = float(loc)
             else:
                 avg_loc_func = float(loc) / num_functions
-        return pd.Series({'function_names' : functions,
+            
+        return pd.Series({'function_names' : functions_str,
+                          'vba_avg_param_per_func' : avg_param_per_func,
                           'vba_cnt_comments' : num_comments,
                           'vba_cnt_functions': num_functions,
                           'vba_cnt_loc':loc,
@@ -547,15 +565,23 @@ class MaliciousMacroBot:
        
         if top >= len(result):
             top = len(result) - 1
-        top_features = {}
+        flat_top_features = {}
         names = {'feat_'+str(x)+'_name':result[x][0] for x in range(1,(top+1))}
         importance = {'feat_'+str(x)+'_importance':result[x][1] for x in range(1,(top+1))}
         counts = {'feat_'+str(x)+'_cnt':result[x][2] for x in range(1,(top+1))}
-        top_features.update(names)
-        top_features.update(importance)
-        top_features.update(counts)
+
+        nested_top_features = []
+        for x in range(1,(top+1)):
+            nested_top_features.append({'name':result[x][0], 
+                                        'importance':int(round(100*result[x][1])), 
+                                        'cnt':result[x][2], 
+                                       })
+
+        flat_top_features.update(names)
+        flat_top_features.update(importance)
+        flat_top_features.update(counts)
  
-        return top_features
+        return (flat_top_features, nested_top_features)
 
 
     def classifyVBA(self, vba):
@@ -586,35 +612,73 @@ class MaliciousMacroBot:
         prediction = self.cls.predict(newsample)
         neighbors = self.knn_alldata_clf.kneighbors(newsample, n_neighbors=5)
 
-        # Assemble results as a dictionary
-        result_dictionary = self.getTopVBAFeatures(newsample_df, top=5)
-        result_dictionary.update(self.formatNeighborResult(neighbors))
+        # Assemble results as a flat dictionary and nested dictionary
+        vba_feature_results = self.getTopVBAFeatures(newsample_df, top=5)
+        flat_result_dictionary = vba_feature_results[0]
+        neighbor_results = self.formatNeighborResult(neighbors)
+        flat_result_dictionary.update(neighbor_results[0])
+
+        nested_dictionary = {'neighbors':neighbor_results[1],
+                             'vba_lang_features':vba_feature_results[1]}
 
         for feature in self.features['vba_features']:
-            result_dictionary[feature] = newsample_df[feature].iloc[0]
-        result_dictionary['prediction'] = prediction[0]
+            flat_result_dictionary[feature] = newsample_df[feature].iloc[0]
+            if isinstance(newsample_df[feature].iloc[0], (np.float64, float)):
+                nested_dictionary[feature] = round(newsample_df[feature].iloc[0],2)
+            else:
+                nested_dictionary[feature] = newsample_df[feature].iloc[0]
 
-        return pd.Series(result_dictionary)
+        nested_dictionary['function_names'] = newsample_df['function_names'].iloc[0]
+        nested_dictionary['prediction'] = prediction[0]
+
+        flat_result_dictionary['function_names'] = newsample_df['function_names'].iloc[0]
+        flat_result_dictionary['prediction'] = prediction[0]
+        flat_result_dictionary['result_dictionary'] = nested_dictionary
+
+        return pd.Series(flat_result_dictionary)
 
 
-    def formatNeighborResult(self, neighbors):
+    def formatNeighborResult(self, neighbors, high_low_threshold=250):
         '''
         Takes in a result from nearest neighbor prediction and maps the selection back to the
         saved modeldata about the original malware training set
         '''
-        summary = {}
+        flat_summary = {}
+        nested_summary = []
+        neighbors_close = []
+        neighbors_far = []
+        distances = []
+
         for i in range(len(neighbors[0][0])):
             cur_neighbor = 'neigh_'+str(i+1)+'_'
 
             index = neighbors[1][0][i]
             series = self.modeldata.iloc[index]
 
-            summary[cur_neighbor+'distance'] = neighbors[0][0][i]
-            summary[cur_neighbor+'rank'] = str(i+1)
-            summary[cur_neighbor+'label'] = series['label']
-            summary[cur_neighbor+'md5'] = series['md5']
-            summary[cur_neighbor+'family'] = series['family']
-        return summary 
+            flat_summary[cur_neighbor+'distance'] = neighbors[0][0][i]
+            flat_summary[cur_neighbor+'order'] = str(i+1)
+            flat_summary[cur_neighbor+'label'] = series['label']
+            flat_summary[cur_neighbor+'md5'] = series['md5']
+            flat_summary[cur_neighbor+'family'] = series['family']
+
+            distances.append(neighbors[0][0][i])
+            if(neighbors[0][0][i] > high_low_threshold):
+                neighbors_far.append(series['family'])
+            else:
+                neighbors_close.append(series['family'])
+            nested_summary.append({'distance':int(round(neighbors[0][0][i])),
+                                   'order':str(i+1),
+                                   'label':series['label'],
+                                   'md5':series['md5'],
+                                   'family':series['family']
+                                  })
+        if len(distances) > 0:
+            avg_distances = round(sum(distances)/float(len(distances)),2)
+            nested_summary.append({'neighbor_avg_distance':avg_distances})
+        nested_summary.append({'neighbors_far':neighbors_far})
+        nested_summary.append({'neighbors_close':neighbors_close})
+
+        return (flat_summary, nested_summary)
 
 
     def mmb_init_model(self, modelRebuild=False, exclude=None):
@@ -651,7 +715,18 @@ class MaliciousMacroBot:
                    
         
     def mmb_evaluate_model(self):
-        print "Re-implementation coming soon."
+        '''
+        Returns scores from cross validation evaluation on the malicious / benign classifier
+        '''
+        predictive_features = self.features['predictive_features']
+        self.clf_X = self.modeldata[predictive_features].as_matrix()
+        self.clf_y = np.array(self.modeldata['label'])
+
+        eval_cls = RandomForestClassifier()
+        accuracy_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5 )
+        f1_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5, scoring='f1_macro')
+
+        return {'accuracy_scores':accuracy_scores, 'f1_scores':f1_scores}
 
 
     def mmb_predict(self, sample_input, datatype='filecontents'):
