@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+
 from os import listdir
 from os.path import isfile, join
 import os
@@ -15,6 +16,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import preprocessing, neighbors
 from sklearn.model_selection import cross_val_score
+import json
 
 class MaliciousMacroBot:
     def __init__(self, benign_path="./model/benign_samples", malicious_path="./model/malicious_samples", model_path="./model"):
@@ -785,4 +787,20 @@ class MaliciousMacroBot:
             return complete_result 
         else:
             raise ValueError("Unexpected error occurred.") 
+
+    def mmb_prediction_to_json(self, prediction):
+        '''
+        Given a prediction DataFrame obtained from calling mmb_predict(), return the
+        json representation of the prediction results. 
+        '''
+        array = []
+        if not isinstance(prediction, pd.DataFrame):
+            raise ValueError("prediction parameter must be a DataFrame with a column named 'result_dictionary'") 
+
+        if 'result_dictionary' not in prediction.columns:
+            raise ValueError("DataFrame must contain a column named 'extracted_vba'") 
+
+        for i in range(len(prediction)):
+            array.append(prediction.iloc[0]['result_dictionary'])
+        return json.dumps(array)
 
