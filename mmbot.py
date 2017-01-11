@@ -790,8 +790,8 @@ class MaliciousMacroBot:
 
     def mmb_prediction_to_json(self, prediction):
         '''
-        Given a prediction DataFrame obtained from calling mmb_predict(), return the
-        json representation of the prediction results. 
+        Given a prediction DataFrame obtained from calling mmb_predict(), return 
+        a dict that can be easily converted to a search-friendly json representation. 
         '''
         array = []
         if not isinstance(prediction, pd.DataFrame):
@@ -802,5 +802,5 @@ class MaliciousMacroBot:
 
         for i in range(len(prediction)):
             array.append(prediction.iloc[0]['result_dictionary'])
-        return json.dumps(array)
+        return array
 
