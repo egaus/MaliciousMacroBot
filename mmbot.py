@@ -29,9 +29,20 @@ class MaliciousMacroBot:
         self.knn_alldata_clf = None
         self.modeldata = None
         self.features = {}
-        self.set_model_paths(os.path.dirname(benign_path),
-                             os.path.dirname(malicious_path), 
-                             os.path.dirname(model_path))
+
+        # Normalize the paths
+        benign_path = os.path.join(benign_path, '')
+        malicious_path = os.path.join(malicious_path, '')
+        model_path = os.path.join(model_path, '')
+
+        if not os.path.exists(benign_path) or not os.path.isdir(benign_path):
+            raise IOError("ERROR: Reading supplied benign_path, it does not exist or is not a directory: {}".format(benign_path,))
+        if not os.path.exists(malicious_path) or not os.path.isdir(malicious_path):
+            raise IOError("ERROR: Reading supplied malicious_path, it does not exist or is not a directory: {}".format(benign_path,))
+        if not os.path.exists(model_path) or not os.path.isdir(model_path):
+            raise IOError("ERROR: Reading supplied model_path, it does not exist or is not a directory: {}".format(benign_path,))
+
+        self.set_model_paths(benign_path, malicious_path, model_path)
 
 
     def getFileHash(self, pathtofile):
@@ -105,15 +116,16 @@ class MaliciousMacroBot:
         except Exception, e:
             raise IOError("ERROR with file or path {}: {}".format(path,str(e)))
 
+
+    '''
     def getFamilyName(self, filepath):
-        '''
         Returns the family name of samples loaded from disk if provided and 'Unknown' otherwise
-        '''
         dirname = os.path.dirname(filepath)
         dirname = dirname.replace(self.benign_path, "")
         dirname = dirname.replace(self.malicious_path, "")
         dirname = dirname.strip()
         if len(dirname) <= 0:
+            print "assuming this is benign??? {}".format(dirname)
             familyName = "Unknown"
         elif dirname[0] == "/" or dirname[0] == "\\":
             familyName = dirname[1:]
@@ -121,6 +133,24 @@ class MaliciousMacroBot:
             familyName = dirname
            
         return familyName
+
+    '''
+
+    def getFamilyName(self, mypath):
+        '''
+        Returns the family name of samples loaded from disk if provided and 'Unknown' if there is a problem with the path 
+        '''
+        normalized_path = os.path.dirname(os.path.abspath(mypath))
+        m = re.match(r'.*[\\/](.*?$)', normalized_path)
+        try:
+            group = m.group(1)
+            if len(group) > 0:
+                return group
+            return 'Unknown'
+        except:
+            return 'Unknown'
+
+
 
 
     def newSamples(self, existing, possiblenew):
@@ -143,18 +173,19 @@ class MaliciousMacroBot:
         self.loadModelVocab()
 
         # Get custom VBA features
-        self.modeldata[['function_names',
-                          'vba_avg_param_per_func', 
-                          'vba_cnt_comments',
-                          'vba_cnt_functions',
-                          'vba_cnt_loc',
-                          'vba_cnt_func_loc_ratio',
-                          'vba_cnt_comment_loc_ratio',
-                          'vba_entropy_chars',
-                          'vba_entropy_words',
-                          'vba_entropy_func_names',
-                          'vba_mean_loc_per_func']] = \
-                        self.modeldata['extracted_vba'].apply(self.getVBAFeatures)
+        self.modeldata = pd.concat([self.modeldata, self.modeldata.extracted_vba.apply(self.getVBAFeatures)], axis=1)
+        #self.modeldata[['function_names',
+        #                  'vba_avg_param_per_func', 
+        #                  'vba_cnt_comments',
+        #                  'vba_cnt_functions',
+        #                  'vba_cnt_loc',
+        #                  'vba_cnt_func_loc_ratio',
+        #                  'vba_cnt_comment_loc_ratio',
+        #                  'vba_entropy_chars',
+        #                  'vba_entropy_words',
+        #                  'vba_entropy_func_names',
+        #                  'vba_mean_loc_per_func']] = \
+        #                self.modeldata['extracted_vba'].apply(self.getVBAFeatures)
 
         tempfeatures = self.modeldata.columns 
         self.features['vba_features'] = [x for x in tempfeatures if x.startswith('vba_')]
@@ -180,9 +211,11 @@ class MaliciousMacroBot:
 
         # Train and Test Model
         predictive_features = self.features['tfidf_features'] + self.features['vba_features']
+
         self.features['predictive_features'] = predictive_features
         self.clf_X = self.modeldata[predictive_features].as_matrix()
         self.clf_y = np.array(self.modeldata['label'])
+
 
         return {'X': self.clf_X, 'y':self.clf_y}
 
@@ -245,7 +278,6 @@ class MaliciousMacroBot:
         try:
             knowndocs = pd.read_pickle(self.modeldata_pickle)
         except Exception, e:
-            print "No usable pre-existing saved model data found: {}".format(str(e))
             knowndocs = None
 
         maldocs = self.getSamplesFromDisk(self.malicious_path)
@@ -356,30 +388,44 @@ class MaliciousMacroBot:
         self.cls = None
         self.knn_alldata_clf = None
 
+        exception = False
+        exceptions = []
+
         try:
             self.features = pd.read_pickle(self.features_pickle)
         except Exception, e:
-            print "Warning could not load features from disk: {}".format(str(e))
+            exception = True
+            exceptions.append("{}".format(self.features_pickle))
         try:
             self.model_tfidf_trans = joblib.load(self.model_tfidf_trans_pickle)
         except:
-            print "Warning could not load tfidf data from disk: {}".format(str(e))
+            exception = True
+            exceptions.append("{}".format(self.model_tfidf_trans_pickle))
         try:
             self.model_cntvect = joblib.load(self.model_cntvect_pickle)
         except:
-            print "Warning could not load count vector from disk: {}".format(str(e))
+            exception = True
+            exceptions.append("{}".format(self.model_cntvect_pickle))
         try:
             self.modeldata = pd.read_pickle(self.modeldata_pickle)
         except:
-            print "Warning could not load modeldata from disk: {}".format(str(e))
+            exception = True
+            exceptions.append("{}".format(self.modeldata_pickle))
         try:
             self.knn_alldata_clf = joblib.load(self.model_knn_all_pickle)
         except:
-            print "Warning could not load nearest neighbor classifier from disk: {}".format(str(e))
+            exception = True
+            exceptions.append("{}".format(self.model_knn_all_pickle))
         try:
             self.cls = joblib.load(self.model_cls_pickle)
         except:
-            print "Warning could not load classifier data from disk: {}".format(str(e))
+            exception = True
+            exceptions.append("{}".format(self.model_cls_pickle))
+
+        if exception:
+            print "INFO: Could not load the following saved state from disk"
+            print "\n\t".join(exceptions)
+            print "Will attempt to rebuild state from samples in model directory"
 
         if (self.features is None or len(self.features) == 0) or \
            (self.model_tfidf_trans is None) or \
@@ -407,19 +453,17 @@ class MaliciousMacroBot:
         try:
             vbaparser = VBA_Parser('mmbot', data=filedata)
             allcode = ''
-            pathnames = None
-            filenames = None
-            
+            pathnames = ''
+            filenames = ''
             if vbaparser.detect_vba_macros():
                 for (filename, stream_path, filename_vba, extracted_vba) in vbaparser.extract_macros():
-                    spacer = "' ====== StreamPath: {} FileName: {} ====== ".format(stream_path,filename_vba)
-                    allcode = "{}\n{}\n{}\n".format(allcode, spacer, extracted_vba)
+                    allcode = allcode + "\n\n\n\n" + extracted_vba
                     if pathnames is None:
                         pathnames = stream_path
                         filenames = filename_vba
                     else:
-                        pathnames = "{};{}".format(pathnames, stream_path)
-                        filenames = "{};{}".format(filenames, filename_vba)
+                        pathnames = pathnames + ", " + stream_path
+                        filenames = filenames + ", " + filename_vba
             else:
                 pathnames = 'No VBA Macros found'
                 filenames = 'No VBA Macros found'
@@ -429,7 +473,7 @@ class MaliciousMacroBot:
             pathnames = 'Error:' + str(e)
             filenames = 'Error:' + str(e)
             allcode = 'Error:' + str(e)        
-    
+        
         return pd.Series({'extracted_vba':allcode,'stream_path':pathnames,'filename_vba':filenames})
 
 
@@ -528,7 +572,7 @@ class MaliciousMacroBot:
 
         self.modeldata_pickle = os.path.join(self.model_path, 'modeldata.pickle')
         self.features_pickle = os.path.join(self.model_path, 'features.pickle')
-        self.vba_vocab = os.path.join(model_path, 'vba_vocab.txt')
+        self.vba_vocab = os.path.join(model_path, 'vocab.txt')
         self.model_cls_pickle = os.path.join(model_path, 'model_classifier.pickle')
         self.model_knn_benign_pickle = os.path.join(model_path, 'model_knn_benign.pickle')
         self.model_knn_malicious_pickle = os.path.join(model_path, 'model_knn_malicious.pickle')
@@ -578,6 +622,9 @@ class MaliciousMacroBot:
                                         'cnt':result[x][2], 
                                        })
 
+        sorted_names = sorted(names.keys()) 
+        flat_top_features['featureprint'] = '_'.join([str(names[y]) for y in sorted_names])
+        nested_top_features = '_'.join([names[y] for y in sorted_names])
         flat_top_features.update(names)
         flat_top_features.update(importance)
         flat_top_features.update(counts)
@@ -698,7 +745,6 @@ class MaliciousMacroBot:
         returns True if successful and False otherwise.
         '''
         modelsLoaded = self.loadModels()
-
         if modelRebuild or not modelsLoaded:
             newdoc_cnt = self.loadModelData(exclude)
             if newdoc_cnt > 0:
