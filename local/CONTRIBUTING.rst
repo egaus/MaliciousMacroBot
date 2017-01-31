@@ -1,0 +1,1 @@
+/home/jschmo/mmbot_release/MaliciousMacroBot/CONTRIBUTING.rst
