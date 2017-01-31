@@ -11,7 +11,10 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [
     'Click>=6.0',
-    # TODO: put package requirements here
+    'oletools>=0.50',
+    'pandas>=0.19.2',
+    'scikit-learn>=0.18.1',
+    'scipy>=0.18.1',
 ]
 
 test_requirements = [
@@ -29,11 +32,11 @@ setup(
     packages=[
         'MaliciousMacroBot',
     ],
-    package_dir={'MaliciousMacroBot':
-                 'MaliciousMacroBot'},
+    package_dir={'mmbot':
+                 'mmbot'},
     entry_points={
         'console_scripts': [
-            'MaliciousMacroBot=MaliciousMacroBot.cli:main'
+            'mmbot=mmbot.cli:main'
         ]
     },
     include_package_data=True,
