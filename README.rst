@@ -1,40 +1,28 @@
-===============================
-MaliciousMacroBot
-===============================
+Malicious Macro Bot Project
+===========================
+
+The main goals of this project are to:
+* Provide a powerful malicious file triage tool for cyber responders.
+* Help fill existing detection gaps for malicious office documents, which are still a very prevalent attack vector today.
+* Deliver a new avenue for threat intelligence, a way to group similar malicious office documents together to identify phishing campaigns and track use of specific malicious document templates.
+
+These goals are achieved through clever feature engineering and applied machine learning techniques like Random Forest and TF-IDF.
+
+----
+
+Installation
+------------
+pip install mmbot
+
+Usage Examples
+--------------
 
 
-.. image:: https://img.shields.io/pypi/v/MaliciousMacroBot.svg
-        :target: https://pypi.python.org/pypi/MaliciousMacroBot
+More Information
+----------------
 
-.. image:: https://img.shields.io/travis/egaus/MaliciousMacroBot.svg
-        :target: https://travis-ci.org/egaus/MaliciousMacroBot
-
-.. image:: https://readthedocs.org/projects/MaliciousMacroBot/badge/?version=latest
-        :target: https://MaliciousMacroBot.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-.. image:: https://pyup.io/repos/github/egaus/MaliciousMacroBot/shield.svg
-     :target: https://pyup.io/repos/github/egaus/MaliciousMacroBot/
-     :alt: Updates
-
-
-Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.
-
-
+License
+-------
 * Free software: Apache Software License 2.0
-* Documentation: https://MaliciousMacroBot.readthedocs.io.
-
-
-Features
---------
-
-* TODO
-
-Credits
----------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+* Documentation: https://mmbot.readthedocs.io.
 

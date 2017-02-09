@@ -1,1 +1,0 @@
-/home/jschmo/mmbot_release/MaliciousMacroBot/Makefile

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
+# init
+from __future__ import absolute_import
+from mmbot.mmbot import MaliciousMacroBot
 
-__author__ = """Evan Gaustad"""
-__email__ = 'evan.gaustad@gmail.com'
-__version__ = '0.1.0'

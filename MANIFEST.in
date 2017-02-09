@@ -1,13 +1,10 @@
+include LICENSE.txt
+include README.txt
 
-include AUTHORS.rst
+include *.pickle *.txt
+recursive-include *.pickle *.txt *.py
 
-include CONTRIBUTING.rst
-include HISTORY.rst
-include LICENSE
-include README.rst
+exclude tox.ini requirements.txt
 
-recursive-include tests *
-recursive-exclude * __pycache__
-recursive-exclude * *.py[co]
+prune tests
 
-recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
