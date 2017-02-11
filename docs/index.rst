@@ -33,14 +33,15 @@ Installation
 
 That's it!  Otherwise checkout the source on this git repo.
 
-**Triage office files with four lines of code**
+**Triage office files with five lines of code**
 
 Import, instantiate, predict::
 
         from mmbot import MaliciousMacroBot
         mmb = MaliciousMacroBot()
+        mmb.mmb_init_model()
         result = mmb.mmb_predict('./your_path/your_file.xlsm', datatype='filepath')
-        result.iloc[0]['prediction']
+        print result.iloc[0]
 
 Note: mmb_predict() returns a Pandas DataFrame.  If you are unfamiliar with Pandas DataFrames, there is a helper function that can be used to convert a useful summary of the prediction result to json.
 

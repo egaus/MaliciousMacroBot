@@ -20,20 +20,38 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 import pickle
 import json
+import pkg_resources
+
+
+
 
 class MaliciousMacroBot:
-    def __init__(self, benign_path=None, malicious_path=None, model_path=os.path.join(os.path.dirname(__file__), 'model')):
+    def __init__(self, benign_path=None, malicious_path=None, model_path=pkg_resources.resource_filename('mmbot', 'model'), retain_sample_contents=False):
         '''
         Constructor to setup path variables for model and sample data and initialize object.
         :param benign_path: directory path (relative or absolute) to benign documents for the machine learning model to learn from.
         :param malicious_path: directory path (relative or absolute) to malicious documents for the machine learning model to learn from.
         :param model_path: directory where model files and helpful data will be saved for the algorithm to function.
+        :param retain_sample_contents: this relates to level of detail saved in the model data.  If True, potentially sensitive
+        information like extracted vba will be stored in the model's pickle file.  The benefit is that incremental
+        models can be built, where adding a new file to the training set will result in only reprocessing that one new
+        file.  Otherwise all files in the benign_path and malicious_path will be reprocessed each time the model is
+        rebuilt.  If you are experimenting with building many models and comparing results, set this to True,
+        otherwise keep it to False.
+        '''
+        # os.path.join(os.path.dirname(__file__), 'model')
+        self.clearState()
+        self.set_model_paths(benign_path, malicious_path, model_path)
+        self.retain_sample_contents = retain_sample_contents
+
+
+    def clearState(self):
+        '''
+        Resets object's state to clear out all model internals created after loading state from disk
         '''
         self.cls = None
-        self.knn_alldata_clf = None
         self.modeldata = None
         self.features = {}
-        self.set_model_paths(benign_path, malicious_path, model_path)
 
 
     def set_model_paths(self, benign_path, malicious_path, model_path):
@@ -280,20 +298,21 @@ class MaliciousMacroBot:
 
     def loadModelData(self, exclude=None):
         '''
-        Loads previously saved data (if exists) and merges with new files found in
-        malicious and benign doc paths.
+        Merges previously saved model data (if exists) with new files found in malicious and benign doc paths.
         :param exclude: string value - if samples (including path) from the training set contain this string,
         they will be omitted from the model.  This is primarily used to hold malware families from consideration
         in the model to assess classification generalization to new unknown families.
         :return: number of new documents loaded into the model
         '''
-        knowndocs = None
         newdoc_cnt = 0
 
-        try:
-            knowndocs = pd.read_pickle(self.modeldata_pickle)
-        except Exception as e:
-            knowndocs = None
+        knowndocs = None
+        # Clear all stored contents because we don't save enough detail to pick up where we left off last time
+        if self.retain_sample_contents == False:
+            self.clearState()
+        else:
+            if self.modeldata is not None:
+                knowndocs = self.modeldata.copy(deep=True)
 
         maldocs = self.getSamplesFromDisk(self.malicious_path)
         if len(maldocs) > 0:
@@ -357,8 +376,12 @@ class MaliciousMacroBot:
         Saves all necessary model state information for classification work to disk.
         :return: True if it succeeded and False otherwise.
         '''
-        if 'extracted_vba' in self.modeldata.columns:
-            del self.modeldata['extracted_vba']
+        # if we aren't keeping the extracted file details to reproduce the analysis, let's clear that data and
+        # save the model.  It's not needed to perform basic predictions on new files.
+        if self.retain_sample_contents == False:
+            metadata = ['filemodified','extracted_vba','filename_vba','filepath', 'filename', 'function_names',
+                        'filesize', 'filemodified', 'stream_path']
+            self.modeldata.drop(metadata, axis=1, inplace=True)
 
         modelblob = {'features':self.features,
                      'model_tfidf_trans':self.model_tfidf_trans,
@@ -384,7 +407,6 @@ class MaliciousMacroBot:
         self.model_cntvect = None
         self.modeldata = None
         self.cls = None
-        self.knn_alldata_clf = None
 
         exception = False
         exceptions = []
@@ -429,7 +451,7 @@ class MaliciousMacroBot:
         if (self.features is None or len(self.features) == 0) or \
            (self.model_tfidf_trans is None) or \
            (self.model_cntvect is None) or (self.modeldata is None) or \
-           (self.cls is None) or (self.knn_alldata_clf is None):
+           (self.cls is None):
             return False
         return True
 
@@ -705,7 +727,7 @@ class MaliciousMacroBot:
         return {'accuracy_scores':accuracy_scores, 'f1_scores':f1_scores}
 
 
-    def mmb_predict(self, sample_input, datatype='filecontents'):
+    def mmb_predict(self, sample_input, datatype='filepath'):
         '''
         Given a suspicious office file input, make a prediction on whether it is benign or malicious
         and provide featureprint and key statistics.
@@ -779,5 +801,4 @@ class MaliciousMacroBot:
         for i in range(len(prediction)):
             array.append(prediction.iloc[0]['result_dictionary'])
         return array
-
 

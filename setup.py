@@ -4,15 +4,15 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 requirements = [
-'oletools>=0.50',
 'pandas>=0.17.1',
 'scikit-learn>=0.18.1',
-'scipy>=0.17.0'
+'scipy>=0.17.0',
+'oletools>=0.50'
 ]
 
 setup(
     name='mmbot',
-    version='0.0.4',
+    version='0.0.2',
     description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.',
     url='https://github.com/egaus/mmbot',
     author='Evan Gaustad',
