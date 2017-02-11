@@ -19,26 +19,18 @@ That's it!  Otherwise checkout the source on this git repo.
 
 Usage Examples
 --------------
-There are only four lines of code needed to get your first prediction on a macro-enabled file.
+**Triage office files with four lines of code**
 
-1. Import the MaliciousMacroBot class
+Import, instantiate, predict
 
-``from mmbot import MaliciousMacroBot``
-
-
-2. Instantiate the class
-
-``mmb = MaliciousMacroBot()``
-
-
-3. Make a prediction
+``from mmbot import MaliciousMacroBot
+mmb = MaliciousMacroBot()
+result = mmb.mmb_predict('./your_path/your_file.xlsm', datatype='filepath')
+result.iloc[0]['prediction']``
 
 Note: mmb_predict() returns a Pandas DataFrame.  If you are unfamiliar with Pandas DataFrames, there is a helper function that can be used to convert a useful summary of the prediction result to json.
 
-``prediction = mmb.mmb_predict('./your_path/your_file.xlsm', datatype='filepath')``
-
-
-4. (Optional) Convert result from Pandas DataFrame to json
+**Convert result from Pandas DataFrame to json**
 
 ``print mmb.mmb_prediction_to_json(prediction)``
 
