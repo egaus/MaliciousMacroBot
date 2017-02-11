@@ -1,8 +1,8 @@
 include LICENSE.txt
 include README.txt
 
-include *.pickle *.txt
-recursive-include *.pickle *.txt *.py
+include *.pickle *.txt *.xlsm
+recursive-include *.pickle *.txt *.py *.xlsm
 
 exclude tox.ini requirements.txt
 

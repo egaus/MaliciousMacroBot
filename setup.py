@@ -12,7 +12,7 @@ requirements = [
 
 setup(
     name='mmbot',
-    version='0.0.3',
+    version='0.0.4',
     description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.',
     url='https://github.com/egaus/mmbot',
     author='Evan Gaustad',
@@ -21,14 +21,14 @@ setup(
     packages=find_packages(exclude=('tests')),
     install_requires=requirements,
     keywords='mmbot malicious macro bot office document security cyber malware',
-    include_package_data=True,
-    package_data={'mmbot' : ['model/*.pickle', 'model/*.txt']},
+    #include_package_data=True,
+    package_data={'mmbot' : ['model/modeldata.pickle', 'model/vocab.txt']},
     classifiers=[
         'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: MIT',
+        'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
     ],
 )
+# 'Programming Language :: Python :: 3.5', # package dependency unfortunately broke with python 3.5
 
