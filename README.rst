@@ -21,11 +21,12 @@ Usage Examples
 --------------
 **Triage office files with four lines of code**
 
-Import, instantiate, predict:: python
-from mmbot import MaliciousMacroBot
-mmb = MaliciousMacroBot()
-result = mmb.mmb_predict('./your_path/your_file.xlsm', datatype='filepath')
-result.iloc[0]['prediction']
+Import, instantiate, predict::
+
+	from mmbot import MaliciousMacroBot
+	mmb = MaliciousMacroBot()
+	result = mmb.mmb_predict('./your_path/your_file.xlsm', datatype='filepath')
+	result.iloc[0]['prediction']
 
 Note: mmb_predict() returns a Pandas DataFrame.  If you are unfamiliar with Pandas DataFrames, there is a helper function that can be used to convert a useful summary of the prediction result to json.
 
