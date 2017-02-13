@@ -19,6 +19,7 @@ setup(
     author_email='evan.gaustad@gmail.com',
     license='MIT',
     packages=find_packages(exclude=('tests')),
+    scripts=['bin/mmbot'],
     install_requires=requirements,
     keywords='mmbot malicious macro bot office document security cyber malware',
     #include_package_data=True,

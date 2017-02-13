@@ -1,0 +1,17 @@
+#! /usr/bin/env python
+
+import argparse
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.')
+
+    parser.add_argument('-i', '--input', help='Path to sample or directory of samples to analyze.  Files will be renamed ".done" post analysis')
+    parser.add_argument('-o', '--output', help='Path to store results from analyzing files.')
+    parser.add_argument('-u', '--update_model', help='Update model with the paths specified for known malicious, known benign, and where to store resulting model.  Must supply the paths if this option is used.')
+    parser.add_argument('-b', '--benign_samples', help='Path to known benign samples to be used as training data for a new model.  Required if -u option is used.')
+    parser.add_argument('-m', '--malicious_samples', help='Path to known malicious samples to be used as training data for a new model.  Required if -u option is used.')
+    parser.add_argument('-s','--model_state', help='Path to location where model state will be saved.')
+
+    args = parser.parse_args()
+
+    print "Test local command worked"
