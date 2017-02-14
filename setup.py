@@ -12,14 +12,14 @@ requirements = [
 
 setup(
     name='mmbot',
-    version='0.0.2',
+    version='0.1.32',
     description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.',
     url='https://github.com/egaus/mmbot',
     author='Evan Gaustad',
     author_email='evan.gaustad@gmail.com',
     license='MIT',
     packages=find_packages(exclude=('tests')),
-    scripts=['bin/mmbot'],
+    scripts=['cli/mmbot'],
     install_requires=requirements,
     keywords='mmbot malicious macro bot office document security cyber malware',
     #include_package_data=True,

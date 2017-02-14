@@ -70,26 +70,30 @@ class MaliciousMacroBot:
                 raise IOError("""ERROR: When supplying benign_path and malicious_path, both paths must have samples to
                                  build a classification model.  Either values can be None and an existing saved model
                                  can be supplied, or paths can exist with corresponding office files and a new model
-                                 can be built.""".format(str(e)))
+                                 can be built.""")
 
             # All three paths are None
             if benign_path is None and malicious_path is None and model_path is None:
-                raise IOError("ERROR: All paths supplied for benign_path, malicious_path, and model_path cannot be None".format(str(e)))
+                raise IOError("ERROR: All paths supplied for benign_path, malicious_path, and model_path cannot be None")
 
             # Make sure provided paths actually do exist
             if benign_path is not None and malicious_path is not None:
                 self.malicious_path = os.path.join(malicious_path, '')
                 if not os.path.exists(malicious_path) or not os.path.isdir(malicious_path):
-                    raise IOError("ERROR: The malicious_path provided {} does not exist".format(malicious_path, str(e)))
+                    raise IOError("ERROR: The malicious_path provided {} does not exist".format(malicious_path))
 
                 self.benign_path = os.path.join(benign_path, '')
                 if not os.path.exists(benign_path) or not os.path.isdir(benign_path):
-                    raise IOError("ERROR: The benign_path provided {} does not exist".format(benign_path, str(e)))
+                    raise IOError("ERROR: The benign_path provided {} does not exist".format(benign_path))
 
             if model_path is not None:
                 self.model_path = os.path.join(model_path, '')
                 self.modeldata_pickle = os.path.join(self.model_path, 'modeldata.pickle')
                 self.vba_vocab = os.path.join(model_path, 'vocab.txt')
+
+                # If the user-supplied path does not exist, use the default vocab.txt that comes with the package
+                if not os.path.exists(self.vba_vocab):
+                    self.vba_vocab = os.path.join(pkg_resources.resource_filename('mmbot', 'model'), 'vocab.txt')
         except Exception as e:
             raise IOError(
                 "ERROR: Supplied benign_path, malicious_path, or model_path does not exist or is not a directory.  {}".format(
@@ -727,7 +731,7 @@ class MaliciousMacroBot:
         return {'accuracy_scores':accuracy_scores, 'f1_scores':f1_scores}
 
 
-    def mmb_predict(self, sample_input, datatype='filepath'):
+    def mmb_predict(self, sample_input, datatype='filepath', exclude_files=None):
         '''
         Given a suspicious office file input, make a prediction on whether it is benign or malicious
         and provide featureprint and key statistics.
@@ -738,6 +742,7 @@ class MaliciousMacroBot:
           - a pandas DataFrame containing any of the three scenarios listed above and column names of either 'filepath', 'filecontents', or 'extracted_vba'
         :param datatype: a string indicating the type of information in the sample_input field and must be one of the
         following three values 'vba', 'filecontents', or 'filepath'.
+        :param exclude_files: if any of the file paths and file names contain the string provided, they will not be analyzed.
         :return: Returns a 'dataframe' with the prediction results
         '''
         if not isinstance(sample_input, (str, pd.DataFrame)):
@@ -759,6 +764,8 @@ class MaliciousMacroBot:
                     morefiles = self.getSamplesFromDisk(sample_input.iloc[i]['filepath'], getHash=True)
                     allfiles.append(morefiles)
                 sample = sample.append(allfiles)
+            if exclude_files is not None:
+                sample = sample.drop(sample[sample['filepath'].str.contains(exclude_files)].index)
             sample = pd.concat([sample, sample.filepath.apply(self.getVBA)], axis=1)
         if datatype == 'filecontents':
             if isinstance(sample_input, str):

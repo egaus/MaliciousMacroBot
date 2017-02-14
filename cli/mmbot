@@ -1,17 +1,92 @@
 #! /usr/bin/env python
 
+import mmbot as mmb
 import argparse
+import sys
+import os
+
+def moveFile(filepath):
+    try:
+        os.rename(filepath, filename + ".done")
+    except Exception as e:
+        print "Error: {}".format(str(e))
+
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.')
+    parser = argparse.ArgumentParser(description='''Malicious Macro Bot: Python 
+        module to classify and cluster Microsoft office documents.  Uses 
+        machine learning techniques to determine if VBA code is malicious or 
+        benign and groups similar documents together.  There are two main 
+        for this command line utility: 1) specifying input, output, and 
+        format of samples to analyze. 2) updating your own model, requiring 
+        the other command line options to all be set.''')
 
-    parser.add_argument('-i', '--input', help='Path to sample or directory of samples to analyze.  Files will be renamed ".done" post analysis')
-    parser.add_argument('-o', '--output', help='Path to store results from analyzing files.')
-    parser.add_argument('-u', '--update_model', help='Update model with the paths specified for known malicious, known benign, and where to store resulting model.  Must supply the paths if this option is used.')
+    parser.add_argument('-i', '--input', help='Path to sample or directory of samples to analyze.  Files will be renamed ".done" post analysis.')
+    parser.add_argument('-o', '--output', help='(Optional) Path to store results from analyzing files.  Default will save in the same directory as the input.')
+    parser.add_argument('-s','--model_saved_state', help='(Optional) Use the model at this location for the analysis.  Default is the model that came with the python package.')
+    parser.add_argument('-f', '--output_format', help='(Optional) format for the output, either "json" or "csv".  Default is json.')
+    parser.add_argument('-u', '--update_model', help='Save a newly built model at this directory path, using the samples found in the path to known malicious_samples and known benign_samples.')
     parser.add_argument('-b', '--benign_samples', help='Path to known benign samples to be used as training data for a new model.  Required if -u option is used.')
     parser.add_argument('-m', '--malicious_samples', help='Path to known malicious samples to be used as training data for a new model.  Required if -u option is used.')
-    parser.add_argument('-s','--model_state', help='Path to location where model state will be saved.')
-
     args = parser.parse_args()
 
-    print "Test local command worked"
+    # Use Case: Analyze samples on disk.
+    if args.input:
+        if not os.path.exists(args.input):
+            print "\nSupplied input file path did not exist.  Exiting.\n"
+            parser.print_help()
+            sys.exit(1)
+
+        input = args.input
+
+        if args.output:
+            output = args.output
+            if not os.path.exists(args.output):
+                print "Output path {} did not exist, creating it and continuing with analysis.".format(args.output)
+                os.makedirs(args.output)
+        else:
+            output = input
+
+        if args.model_saved_state:
+            if not os.path.exists(args.model_saved_state):
+                print "\nSupplied saved model state did not exist.  Exiting.\n"
+                parser.print_help()
+                sys.exit(1)
+            mymacrobot = mmb.MaliciousMacroBot(benign_path=None,
+                                               malicious_path=None,
+                                               model_path=args.model_saved_state)
+        else:
+            mymacrobot = mmb.MaliciousMacroBot()
+
+        mymacrobot.mmb_init_model(modelRebuild=False)
+        import pdb; pdb.set_trace()
+        results = mymacrobot.mmb_predict(pathtofiles, datatype='filepath', exclude_files='.done')
+        # Output to csv
+
+        results.filename.apply(moveFile)
+
+    # Use Case: Update model and save it at a specific location
+    elif args.update_model:
+        if not (args.benign_samples and args.malicious_samples):
+            print "\nWhen the -u option is specified, the -b and -m must both also be provided.  Exiting.\n"
+            parser.print_help()
+            sys.exit(1)
+
+        if not (os.path.exists(args.benign_samples) or os.path.exists(args.malicious_samples)):
+            print "\nPaths to known benign and malicious samples did not exist.  Exiting.\n"
+            parser.print_help()
+            sys.exit(1)
+
+        if not os.path.exists(args.update_model):
+            print "Path for new model {} did not exist, creating it.".format(args.update_model)
+            os.makedirs(args.update_model)
+
+        mymacrobot = mmb.MaliciousMacroBot(benign_path=args.benign_samples,
+                                       malicious_path=args.malicious_samples,
+                                       model_path=args.update_model)
+        mymacrobot.mmb_init_model(modelRebuild=True)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+       
