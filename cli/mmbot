@@ -4,10 +4,12 @@ import mmbot as mmb
 import argparse
 import sys
 import os
+import json
+import time
 
 def moveFile(filepath):
     try:
-        os.rename(filepath, filename + ".done")
+        os.rename(filepath, filepath + ".done")
     except Exception as e:
         print "Error: {}".format(str(e))
 
@@ -59,11 +61,30 @@ if __name__=='__main__':
             mymacrobot = mmb.MaliciousMacroBot()
 
         mymacrobot.mmb_init_model(modelRebuild=False)
-        import pdb; pdb.set_trace()
-        results = mymacrobot.mmb_predict(pathtofiles, datatype='filepath', exclude_files='.done')
-        # Output to csv
 
-        results.filename.apply(moveFile)
+        results = mymacrobot.mmb_predict(input, datatype='filepath', exclude_files='.done')
+
+        outputfilename = os.path.join(output, time.strftime("%Y%m%d_%H%M%S_mmbot_results"))
+        writetojson = False
+        if args.output_format:
+            if args.output_format == 'json':
+                dictresults = mymacrobot.mmb_prediction_to_json(results)
+                with open(outputfilename + '.json', 'w') as outfile:
+                    jsonresults = json.dumps(dictresults, ensure_ascii=False)
+                    json.dump(jsonresults, outfile)
+                    writetojson = True
+
+        if not writetojson:
+            csvcolumns = ['filemodified', 'filename', 'filepath', 'filesize', 'md5',
+               'filename_vba', 'stream_path', 'feat_1_cnt', 'feat_1_importance', 'feat_1_name', 'feat_2_cnt',
+               'feat_2_importance', 'feat_2_name', 'feat_3_cnt', 'feat_3_importance', 'feat_3_name', 'feat_4_cnt',
+               'feat_4_importance', 'feat_4_name', 'feat_5_cnt', 'feat_5_importance', 'feat_5_name', 'featureprint',
+               'function_names', 'prediction', 'vba_avg_param_per_func', 'vba_cnt_comment_loc_ratio',
+               'vba_cnt_comments', 'vba_cnt_func_loc_ratio', 'vba_cnt_functions', 'vba_cnt_loc', 'vba_entropy_chars',
+               'vba_entropy_func_names', 'vba_entropy_words', 'vba_mean_loc_per_func']
+            results[csvcolumns].to_csv(outputfilename + '.csv', index=False, header=True, encoding='utf-8')
+
+        results.filepath.apply(moveFile)
 
     # Use Case: Update model and save it at a specific location
     elif args.update_model:

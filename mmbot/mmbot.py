@@ -23,8 +23,6 @@ import json
 import pkg_resources
 
 
-
-
 class MaliciousMacroBot:
     def __init__(self, benign_path=None, malicious_path=None, model_path=pkg_resources.resource_filename('mmbot', 'model'), retain_sample_contents=False):
         '''
@@ -479,14 +477,23 @@ class MaliciousMacroBot:
             pathnames = ''
             filenames = ''
             if vbaparser.detect_vba_macros():
+                filenameslist = []
+                pathnameslist = []
+                vbacodelist = []
                 for (filename, stream_path, filename_vba, extracted_vba) in vbaparser.extract_macros():
-                    allcode = allcode + "\n\n\n\n" + extracted_vba
+                    vbacodelist.append(extracted_vba.decode("ascii", "ignore"))
+                    #vbacodelist.append(extracted_vba.decode('utf8', 'ignore'))
+
                     if pathnames is None:
-                        pathnames = stream_path
-                        filenames = filename_vba
+                        pathnameslist.append(stream_path)
+                        filenameslist.append(filename_vba)
                     else:
-                        pathnames = pathnames + ", " + stream_path
-                        filenames = filenames + ", " + filename_vba
+                        pathnameslist.append(stream_path)
+                        filenameslist.append(filename_vba)
+                allcode = "\n\n\n\n".join(vbacodelist)
+                filenames = ", ".join(filenameslist)
+                pathnames = ", ".join(pathnameslist)
+
             else:
                 pathnames = 'No VBA Macros found'
                 filenames = 'No VBA Macros found'
