@@ -813,6 +813,6 @@ class MaliciousMacroBot:
             raise ValueError("DataFrame must contain a column named 'extracted_vba'")
 
         for i in range(len(prediction)):
-            array.append(prediction.iloc[0]['result_dictionary'])
+            array.append(prediction.iloc[i]['result_dictionary'])
         return array
 
