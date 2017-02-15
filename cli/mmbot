@@ -6,13 +6,13 @@ import sys
 import os
 import json
 import time
+from pprint import pprint
 
 def moveFile(filepath):
     try:
         os.rename(filepath, filepath + ".done")
     except Exception as e:
         print "Error: {}".format(str(e))
-
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='''Malicious Macro Bot: Python 
@@ -66,6 +66,7 @@ if __name__=='__main__':
 
         outputfilename = os.path.join(output, time.strftime("%Y%m%d_%H%M%S_mmbot_results"))
         writetojson = False
+        dictresults = mymacrobot.mmb_prediction_to_json(results)
         if args.output_format:
             if args.output_format == 'json':
                 dictresults = mymacrobot.mmb_prediction_to_json(results)
@@ -85,6 +86,8 @@ if __name__=='__main__':
             results[csvcolumns].to_csv(outputfilename + '.csv', index=False, header=True, encoding='utf-8')
 
         results.filepath.apply(moveFile)
+
+        pprint(dictresults)
 
     # Use Case: Update model and save it at a specific location
     elif args.update_model:

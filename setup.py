@@ -12,7 +12,7 @@ requirements = [
 
 setup(
     name='mmbot',
-    version='0.1.32',
+    version='1.0.5',
     description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  Uses machine learning techniques to determine if VBA code is malicious or benign and groups similar documents together.',
     url='https://github.com/egaus/mmbot',
     author='Evan Gaustad',
