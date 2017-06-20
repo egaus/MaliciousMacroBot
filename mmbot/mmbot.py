@@ -2,7 +2,6 @@
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-
 from os import listdir
 from os.path import isfile, join
 import os
@@ -21,7 +20,6 @@ from sklearn.model_selection import cross_val_score
 import pickle
 import json
 import pkg_resources
-
 
 class MaliciousMacroBot:
     def __init__(self, benign_path=None, malicious_path=None, model_path=pkg_resources.resource_filename('mmbot', 'model'), retain_sample_contents=False):
@@ -310,11 +308,8 @@ class MaliciousMacroBot:
 
         knowndocs = None
         # Clear all stored contents because we don't save enough detail to pick up where we left off last time
-        if self.retain_sample_contents == False:
-            self.clearState()
-        else:
-            if self.modeldata is not None:
-                knowndocs = self.modeldata.copy(deep=True)
+        if self.modeldata is not None:
+            knowndocs = self.modeldata.copy(deep=True)
 
         maldocs = self.getSamplesFromDisk(self.malicious_path)
         if len(maldocs) > 0:
@@ -443,10 +438,10 @@ class MaliciousMacroBot:
                 exceptions.append("Could not load 'cls' from model data")
         except Exception as e:
             exception = True
-            print ("Error loading model data from disk: {}".format(str(e)))
+            print("Error loading model data from disk: {}".format(str(e)))
 
         if exception:
-            print("INFO: Could not load the following saved state from disk")
+            print("INFO: Could not load saved state from disk")
             print("\n\t".join(exceptions))
             print("Will attempt to rebuild state from samples in model directory")
 
@@ -485,11 +480,11 @@ class MaliciousMacroBot:
                     #vbacodelist.append(extracted_vba.decode('utf8', 'ignore'))
 
                     if pathnames is None:
-                        pathnameslist.append(stream_path)
-                        filenameslist.append(filename_vba)
+                        pathnameslist.append(stream_path.decode("ascii", "ignore"))
+                        filenameslist.append(filename_vba.decode("ascii", "ignore"))
                     else:
-                        pathnameslist.append(stream_path)
-                        filenameslist.append(filename_vba)
+                        pathnameslist.append(stream_path.decode("ascii", "ignore"))
+                        filenameslist.append(filename_vba.decode("ascii", "ignore"))
                 allcode = "\n\n\n\n".join(vbacodelist)
                 filenames = ", ".join(filenameslist)
                 pathnames = ", ".join(pathnameslist)
@@ -695,7 +690,7 @@ class MaliciousMacroBot:
 
     def mmb_init_model(self, modelRebuild=False, exclude=None):
         '''
-        Initiates the machine learning models used order to begin making predictions.
+        Initiates the machine learning models used in order to begin making predictions.
 
         :param modelRebuild: boolean used to rebuild the model by looking for new samples
         on disk or just load the old model without checking for new samples.  If no
@@ -732,10 +727,10 @@ class MaliciousMacroBot:
         self.clf_y = np.array(self.modeldata['label'])
 
         eval_cls = RandomForestClassifier()
-        accuracy_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5 )
+        accuracy_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5)
         f1_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5, scoring='f1_macro')
 
-        return {'accuracy_scores':accuracy_scores, 'f1_scores':f1_scores}
+        return {'accuracy_scores': accuracy_scores, 'f1_scores': f1_scores}
 
 
     def mmb_predict(self, sample_input, datatype='filepath', exclude_files=None):
