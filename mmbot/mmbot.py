@@ -17,6 +17,8 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelBinarizer
 import pickle
 import json
 import pkg_resources
@@ -726,11 +728,18 @@ class MaliciousMacroBot:
         self.clf_X = self.modeldata[predictive_features].as_matrix()
         self.clf_y = np.array(self.modeldata['label'])
 
+        X_train, X_test, y_train, y_test = train_test_split(self.clf_X, self.clf_y, test_size=0.2, random_state=0)
+        lb = LabelBinarizer()
+        y_train = np.array([number[0] for number in lb.fit_transform(y_train)])
         eval_cls = RandomForestClassifier()
-        accuracy_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5)
-        f1_scores = cross_val_score(eval_cls, self.clf_X, self.clf_y, cv=5, scoring='f1_macro')
+        eval_cls.fit(X_train, y_train)
 
-        return {'accuracy_scores': accuracy_scores, 'f1_scores': f1_scores}
+        recall = cross_val_score(eval_cls, X_train, y_train, cv=5, scoring='recall')
+        precision = cross_val_score(eval_cls, X_train, y_train, cv=5, scoring='precision')
+        accuracy = cross_val_score(eval_cls, X_train, y_train, cv=5, scoring='accuracy')
+        f1_score = cross_val_score(eval_cls, X_train, y_train, cv=5, scoring='f1_macro')
+
+        return {'accuracy': accuracy, 'f1': f1_score, 'precision':precision, 'recall':recall}
 
 
     def mmb_predict(self, sample_input, datatype='filepath', exclude_files=None):
