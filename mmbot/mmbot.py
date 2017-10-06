@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import re
 import hashlib
-from oletools.olevba import VBA_Parser, VBA_Scanner
+from oletools.olevba3 import VBA_Parser, VBA_Scanner
 from scipy import stats
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import CountVectorizer
@@ -411,7 +411,9 @@ class MaliciousMacroBot:
         exceptions = []
 
         try:
-            modelblob = pickle.load(open(self.modeldata_pickle, "rb"))
+            with open(self.modeldata_pickle, "rb") as f:
+                modelblob = pickle.load(f, encoding='latin1')
+                f.close()
 
             if 'features' in modelblob.keys():
                 self.features = modelblob['features']
