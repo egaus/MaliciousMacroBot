@@ -5,12 +5,17 @@ from __future__ import (absolute_import, division,
 from os import listdir
 from os.path import isfile, join
 import os
+import sys
 import time
 import pandas as pd
 import numpy as np
 import re
 import hashlib
-from oletools.olevba3 import VBA_Parser, VBA_Scanner
+
+if sys.version_info >= (3, 0):
+    from oletools.olevba3 import VBA_Parser, VBA_Scanner
+else:
+    from oletools.olevba import VBA_Parser, VBA_Scanner
 from scipy import stats
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import CountVectorizer
@@ -23,8 +28,10 @@ import pickle
 import json
 import pkg_resources
 
+
 class MaliciousMacroBot:
-    def __init__(self, benign_path=None, malicious_path=None, model_path=pkg_resources.resource_filename('mmbot', 'model'), retain_sample_contents=False):
+    def __init__(self, benign_path=None, malicious_path=None,
+                 model_path=pkg_resources.resource_filename('mmbot', 'model'), retain_sample_contents=False):
         '''
         Constructor to setup path variables for model and sample data and initialize object.
         :param benign_path: directory path (relative or absolute) to benign documents for the machine learning model to learn from.
@@ -42,7 +49,6 @@ class MaliciousMacroBot:
         self.set_model_paths(benign_path, malicious_path, model_path)
         self.retain_sample_contents = retain_sample_contents
 
-
     def clearState(self):
         '''
         Resets object's state to clear out all model internals created after loading state from disk
@@ -50,7 +56,6 @@ class MaliciousMacroBot:
         self.cls = None
         self.modeldata = None
         self.features = {}
-
 
     def set_model_paths(self, benign_path, malicious_path, model_path):
         '''
@@ -64,7 +69,7 @@ class MaliciousMacroBot:
         try:
             # One of the two paths is None
             if (benign_path is None and malicious_path is not None) or (
-                    benign_path is not None and malicious_path is None):
+                            benign_path is not None and malicious_path is None):
                 raise IOError("""ERROR: When supplying benign_path and malicious_path, both paths must have samples to
                                  build a classification model.  Either values can be None and an existing saved model
                                  can be supplied, or paths can exist with corresponding office files and a new model
@@ -72,7 +77,8 @@ class MaliciousMacroBot:
 
             # All three paths are None
             if benign_path is None and malicious_path is None and model_path is None:
-                raise IOError("ERROR: All paths supplied for benign_path, malicious_path, and model_path cannot be None")
+                raise IOError(
+                    "ERROR: All paths supplied for benign_path, malicious_path, and model_path cannot be None")
 
             # Make sure provided paths actually do exist
             if benign_path is not None and malicious_path is not None:
@@ -97,7 +103,6 @@ class MaliciousMacroBot:
                 "ERROR: Supplied benign_path, malicious_path, or model_path does not exist or is not a directory.  {}".format(
                     str(e)))
 
-
     def getFileHash(self, pathtofile):
         '''
         Computes the MD5 hash of the file
@@ -108,11 +113,10 @@ class MaliciousMacroBot:
             with open(pathtofile, 'rb') as file_to_hash:
                 filedata = file_to_hash.read()
                 md5 = hashlib.md5(filedata).hexdigest()
-                #sha1 = hashlib.sha1(filedata).hexdigest()
-                #sha256 = hashlib.sha256(filedata).hexdigest()
+                # sha1 = hashlib.sha1(filedata).hexdigest()
+                # sha256 = hashlib.sha256(filedata).hexdigest()
                 return md5
         return None
-
 
     def fillMissingHashes(self, row):
         '''
@@ -126,7 +130,6 @@ class MaliciousMacroBot:
         else:
             return row['md5']
 
-
     def getFileMetaData(self, filepath, filename=None, getHash=False):
         '''
         helper function to get meta information about a file to include it's path, date modified, size
@@ -137,14 +140,13 @@ class MaliciousMacroBot:
         '''
         if filename is None:
             filename = os.path.split(filepath)[1]
- 
+
         filemodified = time.ctime(os.path.getmtime(filepath))
         filesize = os.path.getsize(filepath)
         md5 = np.nan
         if getHash:
             md5 = self.getFileHash(filepath)
         return (filename, filepath, filesize, filemodified, md5)
- 
 
     def getSamplesFromDisk(self, path=None, getHash=False):
         '''
@@ -154,15 +156,15 @@ class MaliciousMacroBot:
         :return: a dataframe with the filename, filepath, filesize, modified date, and md5 hash for each file found
         '''
         if not os.path.exists(path):
-            raise IOError("ERROR: File or path does not exist: {}".format(path,))
+            raise IOError("ERROR: File or path does not exist: {}".format(path, ))
 
         if os.path.isfile(path):
             meta = self.getFileMetaData(path, getHash=getHash)
-            return pd.DataFrame({'filename':(meta[0],),
-                                 'filepath':(meta[1],),
-                                 'filesize':(meta[2],),
-                                 'filemodified':(meta[3],),
-                                 'md5':(meta[4],)})
+            return pd.DataFrame({'filename': (meta[0],),
+                                 'filepath': (meta[1],),
+                                 'filesize': (meta[2],),
+                                 'filemodified': (meta[3],),
+                                 'md5': (meta[4],)})
 
         try:
             matches = []
@@ -172,13 +174,12 @@ class MaliciousMacroBot:
                     meta = self.getFileMetaData(filepath, filename, getHash=getHash)
                     matches.append(meta)
             if len(matches) > 0:
-                filenames,paths,sizes,dates,md5s = zip(*matches)
-                return pd.DataFrame({'filename':filenames, 'filepath':paths, 'filesize':sizes, \
-                                 'filemodified':dates, 'md5':md5s})
+                filenames, paths, sizes, dates, md5s = zip(*matches)
+                return pd.DataFrame({'filename': filenames, 'filepath': paths, 'filesize': sizes, \
+                                     'filemodified': dates, 'md5': md5s})
             return pd.DataFrame()
         except Exception as e:
-            raise IOError("ERROR with file or path {}: {}".format(path,str(e)))
-
+            raise IOError("ERROR with file or path {}: {}".format(path, str(e)))
 
     def getFamilyName(self, mypath):
         '''
@@ -197,7 +198,6 @@ class MaliciousMacroBot:
         except:
             return 'Unknown'
 
-
     def newSamples(self, existing, possiblenew):
         '''
         Returns dataframe containing rows from possiblenew with MD5 hashes that are not in existing, to identify
@@ -212,7 +212,6 @@ class MaliciousMacroBot:
         if len(actualnew_items) > 0:
             return possiblenew[possiblenew['md5'].isin(actualnew_items)].copy()
         return None
-
 
     def getLanguageFeatures(self):
         '''
@@ -230,23 +229,23 @@ class MaliciousMacroBot:
         self.features['vba_features'] = [x for x in tempfeatures if x.startswith('vba_')]
 
         # Count Vectorizer
-        corpus = self.modeldata.ix[:,'extracted_vba']
+        corpus = self.modeldata.ix[:, 'extracted_vba']
         self.model_cntvect = CountVectorizer(vocabulary=self.features['vocab'],
-                             lowercase=False,
-                             decode_error='ignore',
-                             token_pattern=r"(?u)\b\w[\w\.]+\b")
+                                             lowercase=False,
+                                             decode_error='ignore',
+                                             token_pattern=r"(?u)\b\w[\w\.]+\b")
         self.modeldata_cnts = self.model_cntvect.fit_transform(corpus)
         self.features['cnt_features'] = ['cnt_' + x for x in self.model_cntvect.get_feature_names()]
         self.features['features'] = self.model_cntvect.get_feature_names()
         self.modeldata = self.modeldata.join(pd.DataFrame(self.modeldata_cnts.toarray(),
-                                                columns=self.features['cnt_features']))
+                                                          columns=self.features['cnt_features']))
 
         # TF-IDF Transformer
         self.model_tfidf_trans = TfidfTransformer()
         self.model_tfidf_cntvect = self.model_tfidf_trans.fit_transform(self.modeldata_cnts.toarray())
         self.features['tfidf_features'] = ['tfidf_' + x for x in self.model_cntvect.get_feature_names()]
         self.modeldata = self.modeldata.join(pd.DataFrame(self.model_tfidf_cntvect.toarray(),
-                                                columns=self.features['tfidf_features']))
+                                                          columns=self.features['tfidf_features']))
 
         # Train and Test Model
         predictive_features = self.features['tfidf_features'] + self.features['vba_features']
@@ -255,8 +254,7 @@ class MaliciousMacroBot:
         self.clf_X = self.modeldata[predictive_features].as_matrix()
         self.clf_y = np.array(self.modeldata['label'])
 
-        return {'X': self.clf_X, 'y':self.clf_y}
-
+        return {'X': self.clf_X, 'y': self.clf_y}
 
     def clearModelFeatures(self):
         '''
@@ -272,7 +270,6 @@ class MaliciousMacroBot:
             self.modeldata.drop(self.modeldata[vba_feature_columns], axis=1, inplace=True)
             self.modeldata.drop(self.modeldata[tfidfcolumns], axis=1, inplace=True)
 
-
     def buildModels(self):
         '''
         After getLanguageFeatures is called, this function builds the models based on
@@ -285,7 +282,6 @@ class MaliciousMacroBot:
 
         return self.cls
 
-
     def loadModelVocab(self):
         '''
         Loads vocabulary used in the bag of words model
@@ -296,7 +292,6 @@ class MaliciousMacroBot:
             lines = [x.strip() for x in lines]
         self.features['vocab'] = set(lines)
         return self.features['vocab']
-
 
     def loadModelData(self, exclude=None):
         '''
@@ -322,7 +317,9 @@ class MaliciousMacroBot:
             benigndocs['label'] = 'benign'
 
         if len(benigndocs) == 0 and len(maldocs) == 0 and knowndocs is None:
-            raise IOError("ERROR: Unable to load saved model data {} or process samples rooted in model path {}.  Unable to make predictions.".format(self.modeldata_pickle, self.model_path))
+            raise IOError(
+                "ERROR: Unable to load saved model data {} or process samples rooted in model path {}.  Unable to make predictions.".format(
+                    self.modeldata_pickle, self.model_path))
 
         possiblenew = pd.concat([maldocs, benigndocs], axis=0)
 
@@ -337,7 +334,7 @@ class MaliciousMacroBot:
             temp = knowndocs.append(possiblenew)
             # Omit seemingly duplicate files with same filepath, filesize and modified date
             grouped_rows = temp.groupby(['filesize', 'filepath', 'filemodified'])
-            omit = grouped_rows.filter(lambda x: len(x)>1)['filepath'].unique()
+            omit = grouped_rows.filter(lambda x: len(x) > 1)['filepath'].unique()
             temp = temp[~((temp['filepath'].isin(omit)) & temp['md5'].isnull())].reset_index(drop=True)
             # Compute hashes for those that are new.  Omit files with duplicate md5 hashes
             temp['md5'] = temp.apply(self.fillMissingHashes, axis=1)
@@ -350,7 +347,7 @@ class MaliciousMacroBot:
             # get enrichment for truly new docs
             if len(newdocs) > 0:
                 print("%d NEW DOCS FOUND!" % (len(newdocs),))
-                print(newdocs[['filename','filemodified','filesize', 'filepath']])
+                print(newdocs[['filename', 'filemodified', 'filesize', 'filepath']])
                 newdocs[['extracted_vba', 'stream_path', 'filename_vba']] = newdocs['filepath'].apply(self.getVBA)
                 newdoc_cnt = len(newdocs)
                 newdocs['family'] = newdocs['filepath'].apply(self.getFamilyName)
@@ -369,7 +366,6 @@ class MaliciousMacroBot:
 
         return newdoc_cnt
 
-
     def saveModels(self):
         '''
         Saves all necessary model state information for classification work to disk.
@@ -378,15 +374,15 @@ class MaliciousMacroBot:
         # if we aren't keeping the extracted file details to reproduce the analysis, let's clear that data and
         # save the model.  It's not needed to perform basic predictions on new files.
         if self.retain_sample_contents == False:
-            metadata = ['filemodified','extracted_vba','filename_vba','filepath', 'filename', 'function_names',
+            metadata = ['filemodified', 'extracted_vba', 'filename_vba', 'filepath', 'filename', 'function_names',
                         'filesize', 'filemodified', 'stream_path']
             self.modeldata.drop(metadata, axis=1, inplace=True)
 
-        modelblob = {'features':self.features,
-                     'model_tfidf_trans':self.model_tfidf_trans,
-                     'model_cntvect':self.model_cntvect,
-                     'modeldata':self.modeldata,
-                     'cls':self.cls
+        modelblob = {'features': self.features,
+                     'model_tfidf_trans': self.model_tfidf_trans,
+                     'model_cntvect': self.model_cntvect,
+                     'modeldata': self.modeldata,
+                     'cls': self.cls
                      }
         try:
             pickle.dump(modelblob, open(self.modeldata_pickle, "wb"))
@@ -394,7 +390,6 @@ class MaliciousMacroBot:
             raise IOError("Error saving model data to disk: {}".format(str(e)))
             return False
         return True
-
 
     def loadModels(self):
         '''
@@ -411,10 +406,12 @@ class MaliciousMacroBot:
         exceptions = []
 
         try:
-            with open(self.modeldata_pickle, "rb") as f:
-                modelblob = pickle.load(f, encoding='latin1')
-                f.close()
-
+            if sys.version_info >= (3, 0):
+                with open(self.modeldata_pickle, "rb") as f:
+                    modelblob = pickle.load(f, encoding='latin1')
+                    f.close()
+            else:
+                modelblob = pickle.load(open(self.modeldata_pickle, "rb"))
             if 'features' in modelblob.keys():
                 self.features = modelblob['features']
             else:
@@ -450,9 +447,9 @@ class MaliciousMacroBot:
             print("Will attempt to rebuild state from samples in model directory")
 
         if (self.features is None or len(self.features) == 0) or \
-           (self.model_tfidf_trans is None) or \
-           (self.model_cntvect is None) or (self.modeldata is None) or \
-           (self.cls is None):
+                (self.model_tfidf_trans is None) or \
+                (self.model_cntvect is None) or (self.modeldata is None) or \
+                (self.cls is None):
             return False
         return True
 
@@ -481,7 +478,7 @@ class MaliciousMacroBot:
                 vbacodelist = []
                 for (filename, stream_path, filename_vba, extracted_vba) in vbaparser.extract_macros():
                     vbacodelist.append(extracted_vba.decode("ascii", "ignore"))
-                    #vbacodelist.append(extracted_vba.decode('utf8', 'ignore'))
+                    # vbacodelist.append(extracted_vba.decode('utf8', 'ignore'))
 
                     if pathnames is None:
                         pathnameslist.append(stream_path.decode("ascii", "ignore"))
@@ -503,8 +500,7 @@ class MaliciousMacroBot:
             filenames = 'Error:' + str(e)
             allcode = 'Error:' + str(e)
 
-        return pd.Series({'extracted_vba':allcode,'stream_path':pathnames,'filename_vba':filenames})
-
+        return pd.Series({'extracted_vba': allcode, 'stream_path': pathnames, 'filename_vba': filenames})
 
     def getEntropy(self, vbcodeSeries):
         '''
@@ -569,26 +565,25 @@ class MaliciousMacroBot:
                 param_list = functions.values()
                 avg_param_per_func = (1.0 * sum(param_list)) / len(param_list)
             if loc > 0:
-                vba_cnt_func_loc_ratio = (1.0*len(functions))/loc
-                vba_cnt_comment_loc_ratio = (1.0*num_comments)/loc
+                vba_cnt_func_loc_ratio = (1.0 * len(functions)) / loc
+                vba_cnt_comment_loc_ratio = (1.0 * num_comments) / loc
             if num_functions <= 0:
                 avg_loc_func = float(loc)
             else:
                 avg_loc_func = float(loc) / num_functions
 
-        return pd.Series({'function_names' : functions_str,
-                          'vba_avg_param_per_func' : avg_param_per_func,
-                          'vba_cnt_comments' : num_comments,
+        return pd.Series({'function_names': functions_str,
+                          'vba_avg_param_per_func': avg_param_per_func,
+                          'vba_cnt_comments': num_comments,
                           'vba_cnt_functions': num_functions,
-                          'vba_cnt_loc':loc,
-                          'vba_cnt_func_loc_ratio' : vba_cnt_func_loc_ratio,
-                          'vba_cnt_comment_loc_ratio' : vba_cnt_comment_loc_ratio,
-                          'vba_entropy_chars' : entropy_chars,
-                          'vba_entropy_words' : entropy_words,
+                          'vba_cnt_loc': loc,
+                          'vba_cnt_func_loc_ratio': vba_cnt_func_loc_ratio,
+                          'vba_cnt_comment_loc_ratio': vba_cnt_comment_loc_ratio,
+                          'vba_entropy_chars': entropy_chars,
+                          'vba_entropy_words': entropy_words,
                           'vba_entropy_func_names': entropy_func_names,
-                          'vba_mean_loc_per_func':avg_loc_func
-                         })
-
+                          'vba_mean_loc_per_func': avg_loc_func
+                          })
 
     def getTopVBAFeatures(self, sample, top=5):
         '''
@@ -613,7 +608,7 @@ class MaliciousMacroBot:
                 feature_cnt = sample[feature_name.replace("tfidf_", "cnt_")].iloc[0]
             else:
                 feature_cnt = feature_value
-            feature_name = feature_name.replace("tfidf_","")
+            feature_name = feature_name.replace("tfidf_", "")
             relevantFeatures.append((feature_name, feature_value, feature_cnt))
 
         # Sort all features that aided in prediction by their relative importance
@@ -622,16 +617,16 @@ class MaliciousMacroBot:
         if top >= len(result):
             top = len(result) - 1
         flat_top_features = {}
-        names = {'feat_'+str(x)+'_name':result[x][0] for x in range(1,(top+1))}
-        importance = {'feat_'+str(x)+'_importance':result[x][1] for x in range(1,(top+1))}
-        counts = {'feat_'+str(x)+'_cnt':result[x][2] for x in range(1,(top+1))}
+        names = {'feat_' + str(x) + '_name': result[x][0] for x in range(1, (top + 1))}
+        importance = {'feat_' + str(x) + '_importance': result[x][1] for x in range(1, (top + 1))}
+        counts = {'feat_' + str(x) + '_cnt': result[x][2] for x in range(1, (top + 1))}
 
         nested_top_features = []
-        for x in range(1,(top+1)):
-            nested_top_features.append({'name':result[x][0],
-                                        'importance':int(round(100*result[x][1])),
-                                        'cnt':result[x][2],
-                                       })
+        for x in range(1, (top + 1)):
+            nested_top_features.append({'name': result[x][0],
+                                        'importance': int(round(100 * result[x][1])),
+                                        'cnt': result[x][2],
+                                        })
 
         sorted_names = sorted(names.keys())
         flat_top_features['featureprint'] = '_'.join([str(names[y]) for y in sorted_names])
@@ -642,7 +637,6 @@ class MaliciousMacroBot:
 
         return (flat_top_features, nested_top_features)
 
-
     def classifyVBA(self, vba):
         '''
         Applies classification model for prediction and clustering related samples to
@@ -651,8 +645,16 @@ class MaliciousMacroBot:
         :return: results as a pandas Series
         '''
         sample = pd.DataFrame(data=[vba], columns=['extracted_vba'])
-
-        newsample_cnt = self.model_cntvect.transform(sample['extracted_vba']).toarray()
+        if sys.version_info >= (3, 0):
+            extracted_vba_dic = {}
+            extracted_vba_dic["extracted_vba"] = sample['extracted_vba']
+            dataset_list = ''.join(extracted_vba_dic)
+            extracted_vba_array = []
+            for item in dataset_list.split(';'):  # comma, or other
+                extracted_vba_array.append(item)
+        else:
+            extracted_vba_array = sample['extracted_vba']
+        newsample_cnt = self.model_cntvect.transform(extracted_vba_array).toarray()
         newsample_tfidf = self.model_tfidf_trans.transform(newsample_cnt).toarray()
         newsample_df = pd.DataFrame(self.getVBAFeatures(vba)).T
 
@@ -673,12 +675,12 @@ class MaliciousMacroBot:
         vba_feature_results = self.getTopVBAFeatures(newsample_df, top=5)
         flat_result_dictionary = vba_feature_results[0]
 
-        nested_dictionary = {'vba_lang_features':vba_feature_results[1]}
+        nested_dictionary = {'vba_lang_features': vba_feature_results[1]}
 
         for feature in self.features['vba_features']:
             flat_result_dictionary[feature] = newsample_df[feature].iloc[0]
             if isinstance(newsample_df[feature].iloc[0], (np.float64, float)):
-                nested_dictionary[feature] = round(newsample_df[feature].iloc[0],2)
+                nested_dictionary[feature] = round(newsample_df[feature].iloc[0], 2)
             else:
                 nested_dictionary[feature] = newsample_df[feature].iloc[0]
 
@@ -690,7 +692,6 @@ class MaliciousMacroBot:
         flat_result_dictionary['result_dictionary'] = nested_dictionary
 
         return pd.Series(flat_result_dictionary)
-
 
     def mmb_init_model(self, modelRebuild=False, exclude=None):
         '''
@@ -721,7 +722,6 @@ class MaliciousMacroBot:
                 modelsLoaded = False
         return modelsLoaded
 
-
     def mmb_evaluate_model(self):
         '''
         Returns scores from cross validation evaluation on the malicious / benign classifier
@@ -741,8 +741,7 @@ class MaliciousMacroBot:
         accuracy = cross_val_score(eval_cls, X_train, y_train, cv=5, scoring='accuracy')
         f1_score = cross_val_score(eval_cls, X_train, y_train, cv=5, scoring='f1_macro')
 
-        return {'accuracy': accuracy, 'f1': f1_score, 'precision':precision, 'recall':recall}
-
+        return {'accuracy': accuracy, 'f1': f1_score, 'precision': precision, 'recall': recall}
 
     def mmb_predict(self, sample_input, datatype='filepath', exclude_files=None):
         '''
@@ -788,7 +787,8 @@ class MaliciousMacroBot:
                 if 'filecontents' not in sample_input.columns:
                     raise ValueError("DataFrame must contain a column named 'filecontents'")
 
-                sample = pd.concat([sample_input, sample_input.filecontents.apply(self.getVBA, args=(datatype,))], axis=1)
+                sample = pd.concat([sample_input, sample_input.filecontents.apply(self.getVBA, args=(datatype,))],
+                                   axis=1)
         if datatype == 'vba':
             if isinstance(sample_input, str):
                 sample = pd.DataFrame(data=[sample_input], columns=['extracted_vba'])
