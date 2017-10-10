@@ -41,7 +41,7 @@ This package was designed for flexibility.  The mmb_predict() function will take
 
 More Information
 ----------------
-Python 3 not fully supported.  One package dependency is not working in Python 3.5 and higher, but once that is updated the rest of this project is ready to support Python 3.
+Python 3 is fully supported.  We have tested up to Python 3.6.2
 
 
 License
