@@ -11,11 +11,14 @@ import pandas as pd
 import numpy as np
 import re
 import hashlib
+import logging
 
 if sys.version_info >= (3, 0):
     from oletools.olevba3 import VBA_Parser, VBA_Scanner
+    import _pickle as pickle
 else:
     from oletools.olevba import VBA_Parser, VBA_Scanner
+    import cPickle as pickle
 from scipy import stats
 from sklearn.externals import joblib
 from sklearn.feature_extraction.text import CountVectorizer
@@ -24,7 +27,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
-import pickle
 import json
 import pkg_resources
 
@@ -32,7 +34,7 @@ import pkg_resources
 class MaliciousMacroBot:
     def __init__(self, benign_path=None, malicious_path=None,
                  model_path=pkg_resources.resource_filename('mmbot', 'model'), retain_sample_contents=False):
-        '''
+        """
         Constructor to setup path variables for model and sample data and initialize object.
         :param benign_path: directory path (relative or absolute) to benign documents for the machine learning model to learn from.
         :param malicious_path: directory path (relative or absolute) to malicious documents for the machine learning model to learn from.
@@ -43,28 +45,28 @@ class MaliciousMacroBot:
         file.  Otherwise all files in the benign_path and malicious_path will be reprocessed each time the model is
         rebuilt.  If you are experimenting with building many models and comparing results, set this to True,
         otherwise keep it to False.
-        '''
+        """
         # os.path.join(os.path.dirname(__file__), 'model')
         self.clearState()
         self.set_model_paths(benign_path, malicious_path, model_path)
         self.retain_sample_contents = retain_sample_contents
 
     def clearState(self):
-        '''
+        """
         Resets object's state to clear out all model internals created after loading state from disk
-        '''
+        """
         self.cls = None
         self.modeldata = None
         self.features = {}
 
     def set_model_paths(self, benign_path, malicious_path, model_path):
-        '''
+        """
         Helper function to set up paths to files and pre-emptively identify issues with the existence of files and
         paths that will be an issue later.
         :param benign_path: directory path (relative or absolute) to benign documents for the machine learning model to learn from.
         :param malicious_path: directory path (relative or absolute) to malicious documents for the machine learning model to learn from.
         :param model_path: directory where model files and helpful data will be saved for the algorithm to function.
-        '''
+        """
 
         try:
             # One of the two paths is None
@@ -104,11 +106,11 @@ class MaliciousMacroBot:
                     str(e)))
 
     def getFileHash(self, pathtofile):
-        '''
+        """
         Computes the MD5 hash of the file
         :param pathtofile: absolute or relative path to a file
         :return: md5 hash of file as a string
-        '''
+        """
         if os.path.isfile(pathtofile):
             with open(pathtofile, 'rb') as file_to_hash:
                 filedata = file_to_hash.read()
@@ -119,25 +121,25 @@ class MaliciousMacroBot:
         return None
 
     def fillMissingHashes(self, row):
-        '''
+        """
         Checks if there is a null or NaN value for the 'md5' column.  If so, computes it, if not,
         returns original value.  Used to fill in missing md5's in a dataframe.
         :param row: a row of a dataframe with a column named 'md5' and 'filepath'
         :return: for any missing md5 values, computes the hash on the given filepath
-        '''
+        """
         if pd.isnull(row['md5']):
             return self.getFileHash(row['filepath'])
         else:
             return row['md5']
 
     def getFileMetaData(self, filepath, filename=None, getHash=False):
-        '''
+        """
         helper function to get meta information about a file to include it's path, date modified, size
         :param filepath: path to a file
         :param filename: filename
         :param getHash: whether or not the hash should be computed
         :return: a tuple of format (filename, filepath, filesize, filemodified, md5)
-        '''
+        """
         if filename is None:
             filename = os.path.split(filepath)[1]
 
@@ -149,12 +151,12 @@ class MaliciousMacroBot:
         return (filename, filepath, filesize, filemodified, md5)
 
     def getSamplesFromDisk(self, path=None, getHash=False):
-        '''
+        """
         Given a path to a file or folder of files, recursively lists all files and metadata for the files
         :param path: directory path
         :param getHash: boolean, indicating whether or not to compute hash
         :return: a dataframe with the filename, filepath, filesize, modified date, and md5 hash for each file found
-        '''
+        """
         if not os.path.exists(path):
             raise IOError("ERROR: File or path does not exist: {}".format(path, ))
 
@@ -182,12 +184,12 @@ class MaliciousMacroBot:
             raise IOError("ERROR with file or path {}: {}".format(path, str(e)))
 
     def getFamilyName(self, mypath):
-        '''
+        """
         Given a file path, return the deepest directory name to allow organizing samples by name and having that meta
         data in predictions
         :param mypath: path to a file in the model training set
         :return: deepest directory name and 'Unknown' if ther eis a problem with a part of the file path
-        '''
+        """
         normalized_path = os.path.dirname(os.path.abspath(mypath))
         m = re.match(r'.*[\\/](.*?$)', normalized_path)
         try:
@@ -199,13 +201,13 @@ class MaliciousMacroBot:
             return 'Unknown'
 
     def newSamples(self, existing, possiblenew):
-        '''
+        """
         Returns dataframe containing rows from possiblenew with MD5 hashes that are not in existing, to identify
         new file samples.
         :param existing: dataframe containing an 'md5' field
         :param possiblenew: dataframe containing an 'md5' field
         :return: Returns dataframe containing rows from possiblenew with MD5 hashes that are not in existing.
-        '''
+        """
         existing_items = existing['md5'].tolist()
         possiblenew_items = possiblenew['md5'].tolist()
         actualnew_items = [x for x in possiblenew_items if x not in existing_items]
@@ -214,11 +216,11 @@ class MaliciousMacroBot:
         return None
 
     def getLanguageFeatures(self):
-        '''
+        """
         After vba has been extracted from all files, this function does feature extraction on that vba and prepares
         everything for a model to be built.  loadModelData has been called, populating self.modeldata
         :return: feature matrix and labels in a dictionary structure with keys 'X' and 'y' respectively
-        '''
+        """
 
         self.loadModelVocab()
 
@@ -257,10 +259,10 @@ class MaliciousMacroBot:
         return {'X': self.clf_X, 'y': self.clf_y}
 
     def clearModelFeatures(self):
-        '''
+        """
         Removes all columns from modeldata with names starting with cnt_, tfidf_, or vba_
         These are the computed columns for the model
-        '''
+        """
         if self.modeldata is not None:
             columns = self.modeldata.columns
             cntcolumns = [x for x in columns if x.startswith('cnt_')]
@@ -271,11 +273,11 @@ class MaliciousMacroBot:
             self.modeldata.drop(self.modeldata[tfidfcolumns], axis=1, inplace=True)
 
     def buildModels(self):
-        '''
+        """
         After getLanguageFeatures is called, this function builds the models based on
         the classifier matrix and labels.
         :return:
-        '''
+        """
         self.cls = RandomForestClassifier()
         # build classifier
         self.cls.fit(self.clf_X, self.clf_y)
@@ -283,10 +285,10 @@ class MaliciousMacroBot:
         return self.cls
 
     def loadModelVocab(self):
-        '''
+        """
         Loads vocabulary used in the bag of words model
         :return: fixed vocabulary that was loaded into internal state
-        '''
+        """
         with open(self.vba_vocab) as vocabfile:
             lines = vocabfile.readlines()
             lines = [x.strip() for x in lines]
@@ -294,13 +296,13 @@ class MaliciousMacroBot:
         return self.features['vocab']
 
     def loadModelData(self, exclude=None):
-        '''
+        """
         Merges previously saved model data (if exists) with new files found in malicious and benign doc paths.
         :param exclude: string value - if samples (including path) from the training set contain this string,
         they will be omitted from the model.  This is primarily used to hold malware families from consideration
         in the model to assess classification generalization to new unknown families.
         :return: number of new documents loaded into the model
-        '''
+        """
         newdoc_cnt = 0
 
         knowndocs = None
@@ -346,8 +348,8 @@ class MaliciousMacroBot:
 
             # get enrichment for truly new docs
             if len(newdocs) > 0:
-                print("%d NEW DOCS FOUND!" % (len(newdocs),))
-                print(newdocs[['filename', 'filemodified', 'filesize', 'filepath']])
+                logging.info("%d NEW DOCS FOUND!" % (len(newdocs),))
+                logging.info(newdocs[['filename', 'filemodified', 'filesize', 'filepath']])
                 newdocs[['extracted_vba', 'stream_path', 'filename_vba']] = newdocs['filepath'].apply(self.getVBA)
                 newdoc_cnt = len(newdocs)
                 newdocs['family'] = newdocs['filepath'].apply(self.getFamilyName)
@@ -355,7 +357,7 @@ class MaliciousMacroBot:
                 alldocs = alldocs.reset_index(drop=True)
 
             else:
-                print("No new model data found")
+                logging.warning("No new model data found")
                 alldocs = knowndocs
 
         # keep only what we'll be working with
@@ -367,13 +369,13 @@ class MaliciousMacroBot:
         return newdoc_cnt
 
     def saveModels(self):
-        '''
+        """
         Saves all necessary model state information for classification work to disk.
         :return: True if it succeeded and False otherwise.
-        '''
+        """
         # if we aren't keeping the extracted file details to reproduce the analysis, let's clear that data and
         # save the model.  It's not needed to perform basic predictions on new files.
-        if self.retain_sample_contents == False:
+        if self.retain_sample_contents is False:
             metadata = ['filemodified', 'extracted_vba', 'filename_vba', 'filepath', 'filename', 'function_names',
                         'filesize', 'filemodified', 'stream_path']
             self.modeldata.drop(metadata, axis=1, inplace=True)
@@ -392,10 +394,10 @@ class MaliciousMacroBot:
         return True
 
     def loadModels(self):
-        '''
+        """
         Loads all necessary state information for classification to work from disk.
         returns False if it failed and True otherwise.
-        '''
+        """
         self.features = {}
         self.mode_tfidf_trans = None
         self.model_cntvect = None
@@ -439,12 +441,12 @@ class MaliciousMacroBot:
                 exceptions.append("Could not load 'cls' from model data")
         except Exception as e:
             exception = True
-            print("Error loading model data from disk: {}".format(str(e)))
+            logging.error("Error loading model data from disk: {}".format(str(e)))
 
         if exception:
-            print("INFO: Could not load saved state from disk")
-            print("\n\t".join(exceptions))
-            print("Will attempt to rebuild state from samples in model directory")
+            logging.error("INFO: Could not load saved state from disk")
+            logging.error("\n\t".join(exceptions))
+            logging.error("Will attempt to rebuild state from samples in model directory")
 
         if (self.features is None or len(self.features) == 0) or \
                 (self.model_tfidf_trans is None) or \
@@ -454,31 +456,27 @@ class MaliciousMacroBot:
         return True
 
     def getVBA(self, myfile, source='filepath'):
-        '''
+        """
         Given a file, parses out the stream paths, vba code, and vba filenames for each.
         :param myfile: filename
         :param source: type of data being passed in.  Either "filepath" to indicate we need to read from disk or
         "filecontents" meaning that the file contents are being passed as a parameter.
         :return: pandas Series that can be used in concert with the pandas DataFrame apply method
-        '''
+        """
         if source == 'filepath':
             filedata = open(myfile, 'rb').read()
         else:
             filedata = myfile
 
-        entry = {}
         try:
             vbaparser = VBA_Parser('mmbot', data=filedata)
-            allcode = ''
             pathnames = ''
-            filenames = ''
             if vbaparser.detect_vba_macros():
                 filenameslist = []
                 pathnameslist = []
                 vbacodelist = []
                 for (filename, stream_path, filename_vba, extracted_vba) in vbaparser.extract_macros():
                     vbacodelist.append(extracted_vba.decode("ascii", "ignore"))
-                    # vbacodelist.append(extracted_vba.decode('utf8', 'ignore'))
 
                     if pathnames is None:
                         pathnameslist.append(stream_path.decode("ascii", "ignore"))
@@ -503,21 +501,21 @@ class MaliciousMacroBot:
         return pd.Series({'extracted_vba': allcode, 'stream_path': pathnames, 'filename_vba': filenames})
 
     def getEntropy(self, vbcodeSeries):
-        '''
+        """
         Helper function to return entropy calculation value
         :param vbcodeSeries: pandas series of values
         :return: entropy of the set of values.
-        '''
+        """
         probs = vbcodeSeries.value_counts() / len(vbcodeSeries)
         entropy = stats.entropy(probs)
         return entropy
 
     def getVBAFeatures(self, vb):
-        '''
+        """
         Given VB code as a string input, returns various summary data about it.
         :param vb: vbacode as one large multiline string
         :return: pandas Series that can be used in concert with the pandas DataFrame apply method
-        '''
+        """
         allfunctions = []
         all_num_functions = []
         all_locs = []
@@ -586,14 +584,14 @@ class MaliciousMacroBot:
                           })
 
     def getTopVBAFeatures(self, sample, top=5):
-        '''
+        """
         Given a sample dataframe, identifies and returns the top VBA features ranking and counts that
         contributed to the prediction.  This includes the "featureprint".
         :param sample: dictionary result from a classification prediction
         :param top: number of ranked features to return.
         :return: returns a dictionary of the top VBA features ranking and counts that
         contributed to the prediction.
-        '''
+        """
         relevantFeatures = []
 
         nonzero_tfidf_features = np.array(sample[self.features['tfidf_features']]).nonzero()
@@ -638,12 +636,12 @@ class MaliciousMacroBot:
         return (flat_top_features, nested_top_features)
 
     def classifyVBA(self, vba):
-        '''
+        """
         Applies classification model for prediction and clustering related samples to
         vba input provided as a pandas Series.
         :param vba: extracted VBA
         :return: results as a pandas Series
-        '''
+        """
         sample = pd.DataFrame(data=[vba], columns=['extracted_vba'])
         if sys.version_info >= (3, 0):
             extracted_vba_dic = {}
@@ -694,7 +692,7 @@ class MaliciousMacroBot:
         return pd.Series(flat_result_dictionary)
 
     def mmb_init_model(self, modelRebuild=False, exclude=None):
-        '''
+        """
         Initiates the machine learning models used in order to begin making predictions.
 
         :param modelRebuild: boolean used to rebuild the model by looking for new samples
@@ -705,7 +703,7 @@ class MaliciousMacroBot:
         families from consideration in the model to test the algorithm for classification generalization
         to unknown families and techniques.
         :return: True if successful and False otherwise.
-        '''
+        """
         modelsLoaded = self.loadModels()
         if modelRebuild or not modelsLoaded:
             newdoc_cnt = self.loadModelData(exclude)
@@ -715,17 +713,17 @@ class MaliciousMacroBot:
                 self.buildModels()
                 modelsLoaded = self.saveModels()
             if (self.modeldata is None) or (len(self.modeldata) == 0):
-                print('''No model data found, supervised machine learning requires
+                logging.error("""No model data found, supervised machine learning requires
                          labeled samples.  Check that samples exist in the benign_samples and
                          malicious_samples directories and that existing model files with .pickle
-                         extensions exist in the existsmodels''')
+                         extensions exist in the existsmodels""")
                 modelsLoaded = False
         return modelsLoaded
 
     def mmb_evaluate_model(self):
-        '''
+        """
         Returns scores from cross validation evaluation on the malicious / benign classifier
-        '''
+        """
         predictive_features = self.features['predictive_features']
         self.clf_X = self.modeldata[predictive_features].as_matrix()
         self.clf_y = np.array(self.modeldata['label'])
@@ -744,7 +742,7 @@ class MaliciousMacroBot:
         return {'accuracy': accuracy, 'f1': f1_score, 'precision': precision, 'recall': recall}
 
     def mmb_predict(self, sample_input, datatype='filepath', exclude_files=None):
-        '''
+        """
         Given a suspicious office file input, make a prediction on whether it is benign or malicious
         and provide featureprint and key statistics.
         :param sample_input:         sample_input is the input to be used in the prediction.  It may be:
@@ -756,7 +754,7 @@ class MaliciousMacroBot:
         following three values 'vba', 'filecontents', or 'filepath'.
         :param exclude_files: if any of the file paths and file names contain the string provided, they will not be analyzed.
         :return: Returns a 'dataframe' with the prediction results
-        '''
+        """
         if not isinstance(sample_input, (str, pd.DataFrame)):
             raise TypeError("sample_input must be either a string or pandas DataFrame")
         if len(sample_input) <= 0:
@@ -804,13 +802,13 @@ class MaliciousMacroBot:
             raise ValueError("Unexpected error occurred.")
 
     def mmb_prediction_to_json(self, prediction):
-        '''
+        """
         Given a prediction DataFrame obtained from calling mmb_predict() convert primary fields into
         a dict that can be easily converted to a search-friendly json representation for a technology like a
         No-SQL database or technology like Elasticsearch.
         :param prediction: result of mmb_predict
         :return: a dictionary of statistics and classification results for the sample
-        '''
+        """
         array = []
         if not isinstance(prediction, pd.DataFrame):
             raise ValueError("prediction parameter must be a DataFrame with a column named 'result_dictionary'")
