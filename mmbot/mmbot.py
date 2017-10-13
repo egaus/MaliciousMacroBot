@@ -101,9 +101,8 @@ class MaliciousMacroBot:
                 if not os.path.exists(self.vba_vocab):
                     self.vba_vocab = os.path.join(pkg_resources.resource_filename('mmbot', 'model'), 'vocab.txt')
         except Exception as e:
-            raise IOError(
-                "ERROR: Supplied benign_path, malicious_path, or model_path does not exist or is not a directory.  {}".format(
-                    str(e)))
+            raise IOError("ERROR: Supplied benign_path, malicious_path, or model_path does not "
+                          "exist or is not a directory.  {}".format(str(e)))
 
     def getFileHash(self, pathtofile):
         """
@@ -352,6 +351,7 @@ class MaliciousMacroBot:
                 logging.info(newdocs[['filename', 'filemodified', 'filesize', 'filepath']])
                 newdocs[['extracted_vba', 'stream_path', 'filename_vba']] = newdocs['filepath'].apply(self.getVBA)
                 newdoc_cnt = len(newdocs)
+                newdocs['family'] = newdocs['filepath'].apply(self.getFamilyName)
                 newdocs['family'] = newdocs['filepath'].apply(self.getFamilyName)
                 alldocs = pd.concat([knowndocs, newdocs], axis=0)
                 alldocs = alldocs.reset_index(drop=True)
