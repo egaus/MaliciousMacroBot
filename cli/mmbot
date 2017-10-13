@@ -4,17 +4,20 @@ import mmbot as mmb
 import argparse
 import sys
 import os
-import json
+import ujson as json
 import time
 from pprint import pprint
+import logging
+
 
 def moveFile(filepath):
     try:
         os.rename(filepath, filepath + ".done")
     except Exception as e:
-        print "Error: {}".format(str(e))
+        logging.error("Error: {}".format(str(e)))
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='''Malicious Macro Bot: Python 
         module to classify and cluster Microsoft office documents.  Uses 
         machine learning techniques to determine if VBA code is malicious or 
@@ -35,7 +38,7 @@ if __name__=='__main__':
     # Use Case: Analyze samples on disk.
     if args.input:
         if not os.path.exists(args.input):
-            print "\nSupplied input file path did not exist.  Exiting.\n"
+            logging.error("\nSupplied input file path did not exist.  Exiting.\n")
             parser.print_help()
             sys.exit(1)
 
@@ -44,14 +47,14 @@ if __name__=='__main__':
         if args.output:
             output = args.output
             if not os.path.exists(args.output):
-                print "Output path {} did not exist, creating it and continuing with analysis.".format(args.output)
+                logging.warning("Output path {} did not exist, creating it and continuing with analysis.".format(args.output))
                 os.makedirs(args.output)
         else:
             output = input
 
         if args.model_saved_state:
             if not os.path.exists(args.model_saved_state):
-                print "\nSupplied saved model state did not exist.  Exiting.\n"
+                logging.error("\nSupplied saved model state did not exist.  Exiting.\n")
                 parser.print_help()
                 sys.exit(1)
             mymacrobot = mmb.MaliciousMacroBot(benign_path=None,
@@ -92,17 +95,17 @@ if __name__=='__main__':
     # Use Case: Update model and save it at a specific location
     elif args.update_model:
         if not (args.benign_samples and args.malicious_samples):
-            print "\nWhen the -u option is specified, the -b and -m must both also be provided.  Exiting.\n"
+            logging.error("\nWhen the -u option is specified, the -b and -m must both also be provided.  Exiting.\n")
             parser.print_help()
             sys.exit(1)
 
         if not (os.path.exists(args.benign_samples) or os.path.exists(args.malicious_samples)):
-            print "\nPaths to known benign and malicious samples did not exist.  Exiting.\n"
+            logging.error("\nPaths to known benign and malicious samples did not exist.  Exiting.\n")
             parser.print_help()
             sys.exit(1)
 
         if not os.path.exists(args.update_model):
-            print "Path for new model {} did not exist, creating it.".format(args.update_model)
+            logging.warning("Path for new model {} did not exist, creating it.".format(args.update_model))
             os.makedirs(args.update_model)
 
         mymacrobot = mmb.MaliciousMacroBot(benign_path=args.benign_samples,
@@ -112,5 +115,3 @@ if __name__=='__main__':
     else:
         parser.print_help()
         sys.exit(1)
-
-       

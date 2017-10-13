@@ -101,9 +101,8 @@ class MaliciousMacroBot:
                 if not os.path.exists(self.vba_vocab):
                     self.vba_vocab = os.path.join(pkg_resources.resource_filename('mmbot', 'model'), 'vocab.txt')
         except Exception as e:
-            raise IOError(
-                "ERROR: Supplied benign_path, malicious_path, or model_path does not exist or is not a directory.  {}".format(
-                    str(e)))
+            raise IOError("ERROR: Supplied benign_path, malicious_path, or model_path does not "
+                          "exist or is not a directory.  {}".format(str(e)))
 
     def getFileHash(self, pathtofile):
         """
@@ -319,9 +318,9 @@ class MaliciousMacroBot:
             benigndocs['label'] = 'benign'
 
         if len(benigndocs) == 0 and len(maldocs) == 0 and knowndocs is None:
-            raise IOError(
-                "ERROR: Unable to load saved model data {} or process samples rooted in model path {}.  Unable to make predictions.".format(
-                    self.modeldata_pickle, self.model_path))
+            raise IOError("ERROR: Unable to load saved model data {} or process samples rooted in model path {}.  "
+                          "Unable to make predictions.".format(self.modeldata_pickle, self.model_path))
+
 
         possiblenew = pd.concat([maldocs, benigndocs], axis=0)
 
@@ -352,6 +351,7 @@ class MaliciousMacroBot:
                 logging.info(newdocs[['filename', 'filemodified', 'filesize', 'filepath']])
                 newdocs[['extracted_vba', 'stream_path', 'filename_vba']] = newdocs['filepath'].apply(self.getVBA)
                 newdoc_cnt = len(newdocs)
+                newdocs['family'] = newdocs['filepath'].apply(self.getFamilyName)
                 newdocs['family'] = newdocs['filepath'].apply(self.getFamilyName)
                 alldocs = pd.concat([knowndocs, newdocs], axis=0)
                 alldocs = alldocs.reset_index(drop=True)
@@ -413,7 +413,7 @@ class MaliciousMacroBot:
                     modelblob = pickle.load(f, encoding='latin1')
                     f.close()
             else:
-                modelblob = pickle.load(open(self.modeldata_pickle, "rb"))
+                modelblob = pickle.load(open(self.modeldata_pickle))
             if 'features' in modelblob.keys():
                 self.features = modelblob['features']
             else:
@@ -593,7 +593,6 @@ class MaliciousMacroBot:
         contributed to the prediction.
         """
         relevantFeatures = []
-
         nonzero_tfidf_features = np.array(sample[self.features['tfidf_features']]).nonzero()
         sample_tfidf_features_row = np.array(sample[self.features['tfidf_features']])[0]
         sample_cnt_row = np.array(sample[self.features['cnt_features']])
@@ -643,15 +642,7 @@ class MaliciousMacroBot:
         :return: results as a pandas Series
         """
         sample = pd.DataFrame(data=[vba], columns=['extracted_vba'])
-        if sys.version_info >= (3, 0):
-            extracted_vba_dic = {}
-            extracted_vba_dic["extracted_vba"] = sample['extracted_vba']
-            dataset_list = ''.join(extracted_vba_dic)
-            extracted_vba_array = []
-            for item in dataset_list.split(';'):  # comma, or other
-                extracted_vba_array.append(item)
-        else:
-            extracted_vba_array = sample['extracted_vba']
+        extracted_vba_array = sample['extracted_vba']
         newsample_cnt = self.model_cntvect.transform(extracted_vba_array).toarray()
         newsample_tfidf = self.model_tfidf_trans.transform(newsample_cnt).toarray()
         newsample_df = pd.DataFrame(self.getVBAFeatures(vba)).T
@@ -796,7 +787,6 @@ class MaliciousMacroBot:
                 sample = sample_input
         if sample is not None and len(sample) > 0:
             complete_result = pd.concat([sample, sample.extracted_vba.apply(self.classifyVBA)], axis=1)
-
             return complete_result
         else:
             raise ValueError("Unexpected error occurred.")

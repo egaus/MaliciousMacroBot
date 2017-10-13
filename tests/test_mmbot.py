@@ -1,10 +1,11 @@
-from mmbot import MaliciousMacroBot 
+from mmbot import MaliciousMacroBot
 import pytest
 import os
 import shutil
 import pandas as pd
+import logging
 
-testdir = './tests/samples'
+testdir = './samples/'
 benign_path = os.path.join(testdir, 'benign')
 malicious_path = os.path.join(testdir, 'malicious')
 model_path = os.path.join(testdir, 'model')
@@ -18,10 +19,11 @@ sample2 = 'benign_2.xlsm'
 sample3 = 'benign_3.xlsm'
 vocab = 'vocab.txt'
 
+
 def resetTest():
-    '''
+    """
     Resets test filesystem structure back to initial state
-    '''
+    """
     # remove artifacts from past tests, if they exist
     shutil.rmtree(benign_path, ignore_errors=True)
     shutil.rmtree(malicious_path, ignore_errors=True)
@@ -42,34 +44,35 @@ def resetTest():
 
 
 def test_init():
-    '''
+    """
     Simple test to ensure initialization works properly
-    '''
+    """
     mmb = MaliciousMacroBot()
-    assert 1==1
+    assert 1 == 1
+
 
 def test_init_none_paths():
-    '''
+    """
     Should raise an exception because all paths cannot be None
-    '''
+    """
     with pytest.raises(IOError) as ioe:
         mmb = MaliciousMacroBot(benign_path=None, malicious_path=None, model_path=None)
     assert 'ERROR: Supplied' in str(ioe.value)
 
+
 def test_init_non_existent_paths():
-    '''
+    """
     Test should raise an exception because benign_path and malicious_path must exist if provided.
-    '''
+    """
     with pytest.raises(IOError) as ioe:
-        mmb = MaliciousMacroBot(benign_path='madeuppath', \
-                                            malicious_path='madeuppath', \
-                                            model_path='madeuppath')
+        mmb = MaliciousMacroBot(benign_path='madeuppath', malicious_path='madeuppath', model_path='madeuppath')
     assert 'ERROR: Supplied' in str(ioe.value)
 
+
 def test_init_existent_but_empty_paths():
-    '''
+    """
     Test should not raise an exception until we try to load the samples and realize no samples exist
-    '''
+    """
     resetTest()
     try:
         mmb = MaliciousMacroBot(empty_path, empty_path, empty_path)
@@ -78,23 +81,23 @@ def test_init_existent_but_empty_paths():
 
 
 def test_init_files_in_directories():
-    '''
+    """
     Test ensures the mmb_init function can build a model based on the samples provided.
-    '''
+    """
     resetTest()
     mmb = MaliciousMacroBot(benign_path, 
                             malicious_path, 
                             model_path, retain_sample_contents=False)
     result = mmb.mmb_init_model(modelRebuild=True)
     os.remove(os.path.join(model_path, 'modeldata.pickle'))
-    assert(result)
+    assert result
 
 
 def test_init_files_in_directories_retain_contents():
-    '''
+    """
     Test ensures the mmb_init function can rebuild a model leveraging saved results
     without reprocessing all samples every time
-    '''
+    """
     # Create model with a few samples
     resetTest()
     mmb = MaliciousMacroBot(benign_path, 
@@ -109,13 +112,13 @@ def test_init_files_in_directories_retain_contents():
                             malicious_path, 
                             model_path, retain_sample_contents=True)
     result = mmb.mmb_init_model(modelRebuild=True)
-    assert(result)
+    assert result
 
 
 def test_mmb_predict_sample_on_disk():
-    '''
+    """
     Test ensures the mmb_predict function can make a prediction from a single sample on disk.
-    '''
+    """
     resetTest()
     mmb = MaliciousMacroBot(benign_path,
                             malicious_path,
@@ -123,17 +126,17 @@ def test_mmb_predict_sample_on_disk():
     result = mmb.mmb_init_model(modelRebuild=True)
     predresult = mmb.mmb_predict(origsample_path, datatype='filepath')
     predicted_label = predresult.iloc[0]['prediction'] 
-    print 'predicted label: {}'.format(predicted_label)
-    print mmb.mmb_prediction_to_json(predresult)
-    print 'predicted label: {}'.format(predicted_label)
+    logging.info('predicted label: {}'.format(predicted_label))
+    logging.info(mmb.mmb_prediction_to_json(predresult))
+    logging.info('predicted label: {}'.format(predicted_label))
 
     assert(predicted_label == 'benign' or predicted_label == 'malicious')
 
 
 def test_mmb_predict_sample_from_extracted_vba_df():
-    '''
+    """
     Test ensures the mmb_predict function can make a prediction from a single vba_sample.
-    '''
+    """
     resetTest()
     mmb = MaliciousMacroBot(benign_path,
                             malicious_path,
@@ -143,15 +146,15 @@ def test_mmb_predict_sample_from_extracted_vba_df():
     predresult = mmb.mmb_predict(samplevba, datatype='vba')
 
     predicted_label = predresult.iloc[0]['prediction'] 
-    print 'predicted label: {}'.format(predicted_label)
+    logging.info('predicted label: {}'.format(predicted_label))
 
     assert(predicted_label == 'benign' or predicted_label == 'malicious')
 
 
 def test_mmb_predict_sample_from_extracted_vba():
-    '''
+    """
     Test ensures the mmb_predict function can make a prediction from a single vba_sample.
-    '''
+    """
     resetTest()
     mmb = MaliciousMacroBot(benign_path,
                             malicious_path,
@@ -162,7 +165,7 @@ def test_mmb_predict_sample_from_extracted_vba():
     predresult = mmb.mmb_predict(sampledf, datatype='vba')
 
     predicted_label = predresult.iloc[0]['prediction'] 
-    print 'predicted label: {}'.format(predicted_label)
+    logging.info('predicted label: {}'.format(predicted_label))
 
     assert(predicted_label == 'benign' or predicted_label == 'malicious')
 
