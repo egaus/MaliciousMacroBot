@@ -669,6 +669,7 @@ class MaliciousMacroBot:
         flat_result_dictionary['function_names'] = newsample_df['function_names'].iloc[0]
         flat_result_dictionary['prediction'] = prediction[0]
         flat_result_dictionary['result_dictionary'] = nested_dictionary
+        flat_result_dictionary['confidence'] = round(proba.max(), 2)
 
         return pd.Series(flat_result_dictionary)
 
