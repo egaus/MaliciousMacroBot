@@ -4,15 +4,15 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 requirements = ['pandas>=0.17.1',
-                'scikit-learn=0.18.2',
+                'scikit-learn>=0.18.2',
                 'scipy>=0.17.0',
                 'oletools>=0.50',
-                'ujson'
+                'joblib',
                 ]
 
 setup(
     name='mmbot',
-    version='1.0.5',
+    version='1.0.10',
     description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  '
                 'Uses machine learning techniques to determine if VBA code is malicious or benign and '
                 'groups similar documents together.',
