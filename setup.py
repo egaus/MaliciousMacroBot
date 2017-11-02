@@ -12,7 +12,7 @@ requirements = ['pandas>=0.17.1',
 
 setup(
     name='mmbot',
-    version='1.0.10',
+    version='1.1.0',
     description='Malicious Macro Bot: Python module to classify and cluster Microsoft office documents.  '
                 'Uses machine learning techniques to determine if VBA code is malicious or benign and '
                 'groups similar documents together.',
