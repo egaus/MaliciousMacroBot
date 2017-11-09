@@ -13,12 +13,7 @@ import re
 import hashlib
 import logging
 import joblib
-
-if sys.version_info >= (3, 0):
-    from oletools.olevba3 import VBA_Parser, VBA_Scanner
-else:
-    from oletools.olevba import VBA_Parser, VBA_Scanner
-
+import gzip
 from scipy import stats
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -27,6 +22,13 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
 import pkg_resources
+
+
+if sys.version_info >= (3, 0):
+    from oletools.olevba3 import VBA_Parser
+else:
+    from oletools.olevba import VBA_Parser
+
 
 class MaliciousMacroBot:
     def __init__(self, benign_path=None, malicious_path=None,
@@ -93,6 +95,7 @@ class MaliciousMacroBot:
                 self.model_path = os.path.join(model_path, '')
                 self.vba_vocab = os.path.join(self.model_path, 'vocab.txt')
                 self.modeldata_pickle = os.path.join(self.model_path, 'modeldata.pickle')
+                self.modeldata_pickle_gz = os.path.join(self.model_path, 'modeldata.pickle.gz')
 
                 # If the user-supplied path does not exist, use the default vocab.txt that comes with the package
                 if not os.path.exists(self.vba_vocab):
@@ -399,9 +402,17 @@ class MaliciousMacroBot:
         load_model = None
         try:
             load_model = joblib.load(self.modeldata_pickle)
-        except Exception as e:
-            logging.warning("Could not load model from pickle file {}.\nFailed with error: {}".format(self.modeldata_pickle, str(e)))
-
+            logging.info("Using extracted modeldata.pickle file")
+        except IOError:
+            try:
+                logging.info("Using compressed modeldata.pickle.gz file"
+                             "this may be slower than using modeldata.pickle ")
+                load_model = joblib.load(gzip.open(self.modeldata_pickle_gz))
+            except Exception as x:
+                logging.warning("Could not load model from pickle file {}.\nFailed with error: {}"
+                                .format(self.modeldata_pickle, str(x)))
+        except TypeError as y:
+            logging.error("Pickle file may be corrupted, please verify you have a proper pickle file {}".format(str(y)))
         try:
             self.modeldata = load_model['modeldata']
             self.features = load_model['features']
