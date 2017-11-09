@@ -1,7 +1,7 @@
 include LICENSE.txt
 include README.txt
 
-include *.pickle *.json *.txt *.xlsm
+include *.pickle *.json *.txt *.xlsm *.gz
 recursive-include *.pickle *.json *.txt *.py *.xlsm
 
 exclude tox.ini requirements.txt

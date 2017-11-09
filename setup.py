@@ -25,7 +25,7 @@ setup(
     install_requires=requirements,
     keywords='mmbot malicious macro bot office document security cyber malware',
     # include_package_data=True,
-    package_data={'mmbot': ['model/modeldata.pickle', 'model/vocab.txt']},
+    package_data={'mmbot': ['model/modeldata.pickle.gz', 'model/vocab.txt']},
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
