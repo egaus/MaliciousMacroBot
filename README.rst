@@ -40,6 +40,15 @@ Note: mmb_predict() returns a Pandas DataFrame.  If you are unfamiliar with Pand
 This package was designed for flexibility.  The mmb_predict() function will take in single office documents as a path to the specific file, as a path to a directory and recursively analyze all files in the path and subdirectories, as a raw byte stream of a file passed to it, or as a string of already extracted vba text that a different tool already processed.  Finally, all of these options can be done in bulk mode, where the input is a Pandas DataFrame.  The method will decide how to handle it based on the "datatype" argument and the actual python object type passed in.
 
 
+Update v1.0.10
+-------------
+ * Added Python 3 support
+ * Reimplemented the model so it loads with joblib
+ * The prediction now includes a "confidence" score on a scale from 0 - 1.0
+ * Larger model, factoring in approx. 40,000 macro-enabled samples, with 10,000 benign
+ * Tuned RandomForest model to use 100 prediction trees and up to 20% of the features in the prediction
+
+
 More Information
 ----------------
 Python 3 is fully supported.  We have tested up to Python 3.6.2
