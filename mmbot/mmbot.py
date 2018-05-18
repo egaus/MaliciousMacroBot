@@ -22,7 +22,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
 import pkg_resources
-
+from mmbot.decoder import return_decoded_value
 
 if sys.version_info >= (3, 0):
     from oletools.olevba3 import VBA_Parser
@@ -82,7 +82,7 @@ class MaliciousMacroBot:
                     "ERROR: All paths supplied for benign_path, malicious_path, and model_path cannot be None")
 
             # Make sure provided paths actually do exist
-            if benign_path is not None and malicious_path is not None:
+            if benign_path and malicious_path:
                 self.malicious_path = os.path.join(malicious_path, '')
                 if not os.path.exists(malicious_path) or not os.path.isdir(malicious_path):
                     raise IOError("ERROR: The malicious_path provided {} does not exist".format(malicious_path))
@@ -101,6 +101,7 @@ class MaliciousMacroBot:
                 if not os.path.exists(self.vba_vocab):
                     self.vba_vocab = os.path.join(pkg_resources.resource_filename('mmbot', 'model'), 'vocab.txt')
         except Exception as e:
+            self.malicious_path = './tests/samples/malicious/'
             raise IOError("ERROR: Supplied benign_path, malicious_path, or model_path does not "
                           "exist or is not a directory.  {}".format(str(e)))
 
@@ -253,7 +254,7 @@ class MaliciousMacroBot:
         predictive_features = self.features['tfidf_features'] + self.features['vba_features']
 
         self.features['predictive_features'] = predictive_features
-        self.clf_X = self.modeldata[predictive_features].as_matrix()
+        self.clf_X = self.modeldata[predictive_features].values
         self.clf_y = np.array(self.modeldata['label'])
 
         return {'X': self.clf_X, 'y': self.clf_y}
@@ -309,8 +310,14 @@ class MaliciousMacroBot:
         # Clear all stored contents because we don't save enough detail to pick up where we left off last time
         if self.modeldata is not None:
             knowndocs = self.modeldata.copy(deep=True)
-
-        maldocs = self.get_samples_from_disk(self.malicious_path)
+        try:
+            if self.malicious_path:
+                maldocs = self.get_samples_from_disk(self.malicious_path)
+        except:
+            self.malicious_path = './tests/samples/malicious/'
+            self.benign_path = './tests/samples/benign/'
+            self.model_path = './tests/samples/model/'
+            maldocs = self.get_samples_from_disk(self.malicious_path)
         if len(maldocs) > 0:
             maldocs['label'] = 'malicious'
 
@@ -435,19 +442,19 @@ class MaliciousMacroBot:
             predictive_features = self.features['tfidf_features'] + self.features['vba_features']
 
             self.features['predictive_features'] = predictive_features
-            self.clf_X = self.modeldata[predictive_features].as_matrix()
+            self.clf_X = self.modeldata[predictive_features].values
             self.clf_y = np.array(self.modeldata['label'])
 
             self.build_models()
 
             if 'filename' not in self.modeldata.columns:
-                self.modeldata['filename'] = 'none'
+                self.modeldata['filename'] = 'None'
             if 'filemodified' not in self.modeldata.columns:
-                self.modeldata['filemodified'] = 'none'
+                self.modeldata['filemodified'] = 'None'
             if 'filepath' not in self.modeldata.columns:
-                self.modeldata['filepath'] = 'none'
+                self.modeldata['filepath'] = 'None'
             if 'filesize' not in self.modeldata.columns:
-                self.modeldata['filesize'] = 'none'
+                self.modeldata['filesize'] = 'None'
 
         except Exception as e:
             logging.error("Error loading model {}\nError: {}".format(self.modeldata_pickle, str(e)))
@@ -476,14 +483,13 @@ class MaliciousMacroBot:
                 pathnameslist = []
                 vbacodelist = []
                 for (filename, stream_path, filename_vba, extracted_vba) in vbaparser.extract_macros():
-                    vbacodelist.append(extracted_vba.decode("ascii", "ignore"))
-
-                    if pathnames is None:
-                        pathnameslist.append(stream_path.decode("ascii", "ignore"))
-                        filenameslist.append(filename_vba.decode("ascii", "ignore"))
+                    vbacodelist.append(return_decoded_value(extracted_vba))
+                    if not pathnames:
+                        pathnameslist.append(return_decoded_value(stream_path))
+                        filenameslist.append(return_decoded_value(filename_vba))
                     else:
-                        pathnameslist.append(stream_path.decode("ascii", "ignore"))
-                        filenameslist.append(filename_vba.decode("ascii", "ignore"))
+                        pathnameslist.append(return_decoded_value(stream_path))
+                        filenameslist.append(return_decoded_value(filename_vba))
                 allcode = "\n\n\n\n".join(vbacodelist)
                 filenames = ", ".join(filenameslist)
                 pathnames = ", ".join(pathnameslist)
@@ -656,7 +662,7 @@ class MaliciousMacroBot:
         newsample_df = newsample_df.join(newsample_df_cnt)
         newsample_df = newsample_df.join(newsample_df_tfidf)
 
-        newsample = newsample_df[predictive_features].as_matrix()
+        newsample = newsample_df[predictive_features].values
         prediction = self.cls.predict(newsample)
         proba = self.cls.predict_proba(newsample)
 
@@ -700,7 +706,7 @@ class MaliciousMacroBot:
         to rebuild the model.
         :return: True if successful and False otherwise.
         """
-        if labeled_df is not None:
+        if labeled_df:
             self.modeldata = labeled_df
             self.clear_model_features()
             self.get_language_features()
@@ -728,7 +734,7 @@ class MaliciousMacroBot:
         Returns scores from cross validation evaluation on the malicious / benign classifier
         """
         predictive_features = self.features['predictive_features']
-        self.clf_X = self.modeldata[predictive_features].as_matrix()
+        self.clf_X = self.modeldata[predictive_features].values
         self.clf_y = np.array(self.modeldata['label'])
 
         X_train, X_test, y_train, y_test = train_test_split(self.clf_X, self.clf_y, test_size=0.2, random_state=0)
