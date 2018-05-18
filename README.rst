@@ -43,11 +43,11 @@ This package was designed for flexibility.  The mmb_predict() function will take
 
 More Information
 ----------------
-Python 3 is fully supported.  We have tested up to Python 3.6.2
+Python 3.6 + is fully supported.  We have tested with Python 3.6.2
 
 **Update v1.0.10**
 
-* Added Python 3 support
+* Added Python 3.6 support
 * Reimplemented the model so it loads with joblib
 * The prediction now includes a "confidence" score on a scale from 0 - 1.0
 * Larger model, factoring in approx. 40,000 macro-enabled samples, with 10,000 benign
